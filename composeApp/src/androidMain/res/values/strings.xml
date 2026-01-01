@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">JamboFoodDelivery</string>
+
+    <string name="icon_pizza">ic_pizza</string>
+    <string name="icon_butter_cake">ic_butter_cake</string>
+    <string name="icon_sushi">ic_burger</string>
+    <string name="icon_fastfood">ic_fastfood</string>
+    <string name="icon_desserts">ic_dessert</string>
+    <string name="icon_fitness">ic_fitness</string>
+    <string name="icon_coffee">ic_coffee</string>
+</resources>
