@@ -2,6 +2,7 @@ package com.example.jambofooddelivery.di
 
 import com.example.jambofooddelivery.remote.ApiService
 import com.example.jambofooddelivery.remote.ApiServiceImpl
+import com.example.jambofooddelivery.remote.CloudinaryService
 import io.ktor.client.*
 import io.ktor.client.plugins.*
 import io.ktor.client.plugins.contentnegotiation.*
@@ -15,6 +16,7 @@ import org.koin.dsl.module
 val networkModule = module {
     single { createHttpClient() }
     single<ApiService> { ApiServiceImpl(get()) }
+    single { CloudinaryService(get()) }
 }
 
 @OptIn(ExperimentalSerializationApi::class)
@@ -41,9 +43,7 @@ fun createHttpClient(): HttpClient {
         }
 
         defaultRequest {
-            url(" https://jambofooddelivery.onrender.com/")
-
-//            https://mini-elearning-web-backend.onrender.com/api/
+            url("https://jambofooddeliverybackend-754053186113.europe-west1.run.app/")
         }
 
         expectSuccess = true

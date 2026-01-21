@@ -21,6 +21,7 @@ kotlin {
             implementation(compose.preview)
             implementation(libs.androidx.activity.compose)
             implementation(libs.koin.androidx.compose)
+            implementation(libs.androidx.core.splashscreen)
         }
         commonMain.dependencies {
             implementation(compose.runtime)
@@ -40,9 +41,6 @@ kotlin {
             implementation(libs.koin.androidx.compose)
             implementation(libs.androidx.navigation.compose)
             implementation("io.coil-kt.coil3:coil-compose:3.3.0")
-            //russhwolf
-//            implementation("com.russhwolf:multiplatform-settings-android:1.1.1")
-
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -60,15 +58,11 @@ android {
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
         versionName = "1.0"
-//        ndkVersion = "26.3.11579264"
     }
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
-//        jniLibs {
-//            useLegacyPackaging = true
-//        }
     }
     buildTypes {
         getByName("release") {

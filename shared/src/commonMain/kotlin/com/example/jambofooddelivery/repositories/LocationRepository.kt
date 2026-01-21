@@ -5,6 +5,12 @@ import com.example.jambofooddelivery.remote.ApiService
 import com.example.jambofooddelivery.utils.Result
 import kotlinx.coroutines.flow.Flow
 
+interface PlatformLocationService {
+    suspend fun getCurrentLocation(): Location?
+    fun getLocationUpdates(): Flow<Location>
+    suspend fun hasLocationPermission(): Boolean
+    suspend fun requestLocationPermission(): Boolean
+}
 
 interface LocationRepository {
     suspend fun getCurrentLocation(): Location?
@@ -16,7 +22,7 @@ interface LocationRepository {
 }
 
 class LocationRepositoryImpl(
-    private val platformLocationService: LocationRepository,
+    private val platformLocationService: PlatformLocationService,
     private val apiService: ApiService
 ) : LocationRepository {
     override suspend fun getCurrentLocation(): Location? {
@@ -61,3 +67,6 @@ class LocationRepositoryImpl(
         }
     }
 }
+
+
+

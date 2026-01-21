@@ -39,7 +39,7 @@ import androidx.compose.ui.unit.dp
 //        }
 //    }
 //}
-//
+
 //@Composable
 //fun NearbyRestaurantsShimmer() {
 //    LazyColumn(
@@ -53,46 +53,46 @@ import androidx.compose.ui.unit.dp
 //        }
 //    }
 //}
-//
-//@Composable
-//fun ShimmerCard(
-//    modifier: Modifier = Modifier
-//) {
-//    val shimmerColors = listOf(
-//        Color.LightGray.copy(alpha = 0.6f),
-//        Color.LightGray.copy(alpha = 0.2f),
-//        Color.LightGray.copy(alpha = 0.6f),
-//    )
-//
-//    val transition = rememberInfiniteTransition()
-//    val translateAnim by transition.animateFloat(
-//        initialValue = 0f,
-//        targetValue = 1000f,
-//        animationSpec = infiniteRepeatable(
-//            animation = tween(
-//                durationMillis = 1000,
-//                easing = FastOutSlowInEasing
-//            ),
-//            repeatMode = RepeatMode.Reverse
-//        )
-//    )
-//
-//    val brush = Brush.linearGradient(
-//        colors = shimmerColors,
-//        start = Offset(translateAnim, translateAnim),
-//        end = Offset(translateAnim + 500f, translateAnim + 500f)
-//    )
-//
-//    Card(
-//        modifier = modifier,
-//        shape = MaterialTheme.shapes.medium
-//    ) {
-//        Box(
-//            modifier = Modifier
-//                .fillMaxSize()
-//                .background(brush)
-//        )
-//    }
-//
-//}
+
+@Composable
+fun ShimmerCard(
+    modifier: Modifier = Modifier
+) {
+    val shimmerColors = listOf(
+        Color.LightGray.copy(alpha = 0.6f),
+        Color.LightGray.copy(alpha = 0.2f),
+        Color.LightGray.copy(alpha = 0.6f),
+    )
+
+    val transition = rememberInfiniteTransition()
+    val translateAnim by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1000f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(
+                durationMillis = 1000,
+                easing = FastOutSlowInEasing
+            ),
+            repeatMode = RepeatMode.Reverse
+        )
+    )
+
+    val brush = Brush.linearGradient(
+        colors = shimmerColors,
+        start = Offset(translateAnim, translateAnim),
+        end = Offset(translateAnim + 500f, translateAnim + 500f)
+    )
+
+    Card(
+        modifier = modifier,
+        shape = MaterialTheme.shapes.medium
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(brush)
+        )
+    }
+
+}
 //

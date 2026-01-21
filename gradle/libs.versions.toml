@@ -33,6 +33,7 @@ compose-material3 = "1.4.0"
 native-coroutines = "1.0.0-ALPHA-6"
 litertSupportApi = "1.4.1"
 navigationComposeVersion = "2.9.6"
+core-splashscreen = "1.0.1"
 
 
 
@@ -49,6 +50,7 @@ androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "a
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activity" }
 androidx-lifecycle-viewmodelCompose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "androidx-lifecycle" }
 androidx-lifecycle-runtimeCompose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose", version.ref = "androidx-lifecycle" }
+androidx-core-splashscreen = { module = "androidx.core:core-splashscreen", version.ref = "core-splashscreen" }
 
 androidx-camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "cameraxVersion" }
 androidx-camera-core = { module = "androidx.camera:camera-core", version.ref = "cameraxVersion" }

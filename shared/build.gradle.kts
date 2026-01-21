@@ -47,10 +47,10 @@ kotlin {
 
             // Kotlinx Serialization
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
+            
             // SQLDelight
-//            implementation("com.squareup.sqldelight:runtime:1.5.5")
             implementation(libs.runtime)
-            implementation("com.squareup.sqldelight:coroutines-extensions:1.5.5")
+            implementation("app.cash.sqldelight:coroutines-extensions:2.0.1")
 
             // Koin DI
             implementation("io.insert-koin:koin-core:3.4.3")
@@ -63,10 +63,6 @@ kotlin {
             // Logger
             implementation("io.github.aakira:napier:2.6.1")
 
-            // Native Coroutines
-//            implementation("com.rickclephas.kmp:native-coroutines-core:1.0.0-ALPHA-6")
-
-
         }
         androidMain.dependencies {
             implementation(libs.tehras.charts)
@@ -78,7 +74,6 @@ kotlin {
             implementation("io.insert-koin:koin-android:3.5.6")
 
             // SQLDelight Android Driver
-//            implementation("com.squareup.sqldelight:android-driver:1.5.5")
             implementation(libs.android.driver)
 
             

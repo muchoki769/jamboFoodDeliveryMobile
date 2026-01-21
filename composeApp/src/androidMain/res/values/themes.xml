@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.App.Starting" parent="Theme.SplashScreen">
+        <!-- Background of the splash screen -->
+<!--        <item name="windowSplashScreenBackground">#6200EE</item> &lt;!&ndash; Replace with your primary color &ndash;&gt;-->
+        <item name="windowSplashScreenBackground">#F5F5F0</item>
+
+
+        <!-- Icon to be shown in the center -->
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+
+        <!-- Theme to switch to after the splash screen is finished -->
+        <item name="postSplashScreenTheme">@android:style/Theme.Material.Light.NoActionBar</item>
+    </style>
+</resources>

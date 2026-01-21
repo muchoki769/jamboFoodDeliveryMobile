@@ -1,6 +1,5 @@
 package com.example.jambofooddelivery.repositories
 
-import com.example.jambofooddelivery.cache.Database
 import com.example.jambofooddelivery.models.User
 import com.example.jambofooddelivery.preferences.AppSettings
 import com.example.jambofooddelivery.remote.ApiService
@@ -14,21 +13,22 @@ import kotlinx.coroutines.flow.flow
 class AuthRepositoryImpl(
     private val apiService: ApiService,
     private val appSettings: AppSettings,
-//    private val db: Database,
 ) : AuthRepository {
 
     override suspend fun login(email: String, password: String): Result<User> {
         return try {
             val response = apiService.login(LoginRequest(email, password))
             if (response.success && response.data != null) {
-                appSettings.saveUser(response.data)
-                appSettings.saveToken("jwt_token_here") // You'd get this from response
-                Result.Success(response.data)
+                val authData = response.data
+                appSettings.saveUser(authData.user)
+                
+                val token = authData.token ?: authData.accessToken
+                if (token != null) appSettings.saveToken(token)
+
+                Result.Success(authData.user)
             } else {
                 Result.Error(response.error ?: "Login failed")
             }
-        } catch (e: ClientRequestException) {
-            Result.Error("Invalid credentials")
         } catch (e: Exception) {
             Result.Error("Network error: ${e.message}")
         }
@@ -46,7 +46,13 @@ class AuthRepositoryImpl(
                 RegisterRequest(email, password, firstName, lastName, phone)
             )
             if (response.success && response.data != null) {
-                Result.Success(response.data)
+                val authData = response.data
+                appSettings.saveUser(authData.user)
+                
+                val token = authData.token ?: authData.accessToken
+                if (token != null) appSettings.saveToken(token)
+                
+                Result.Success(authData.user)
             } else {
                 Result.Error(response.error ?: "Registration failed")
             }

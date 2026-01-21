@@ -13,14 +13,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.Home
@@ -56,7 +54,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -75,7 +72,31 @@ import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
 
-
+/**
+ * Helper function to optimize Cloudinary URLs by adding transformation parameters.
+ * It also handles cases where only a public ID or relative path is provided.
+ */
+fun getCloudinaryUrl(url: String?, width: Int = 800, height: Int = 400): String {
+    if (url.isNullOrBlank()) return ""
+    
+    val cloudName = "dahss2ggd" // Your Cloudinary cloud name
+    
+    // Construct full URL if it's just a public ID or relative path
+    val fullUrl = if (!url.startsWith("http")) {
+        val cleanPath = url.removePrefix("/")
+        "https://res.cloudinary.com/$cloudName/image/upload/$cleanPath"
+    } else {
+        url
+    }
+    
+    // Only apply transformations to Cloudinary URLs
+    return if (fullUrl.contains("cloudinary.com") && fullUrl.contains("/upload/")) {
+        // Inject transformations after '/upload/'
+        fullUrl.replace("/upload/", "/upload/w_$width,h_$height,c_fill,q_auto,f_auto/")
+    } else {
+        fullUrl
+    }
+}
 
 @Composable
 fun HomeScreen(
@@ -100,15 +121,14 @@ fun HomeScreen(
                 onCartClick = onNavigateToCart
             )
         },
-
-                bottomBar = {
+        bottomBar = {
             BottomNavigationBar(
                 selectedRoute = "home",
-                onOrdersClick = onNavigateToOrders
+                onOrdersClick = onNavigateToOrders,
+                onProfileClick = onNavigateToProfile
             )
         }
-
-    )  {paddingValues ->
+    )  { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -143,9 +163,7 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
         }
-
     }
-
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -161,7 +179,7 @@ fun HomeAppBar(
         title = {
             Column {
                 Text(
-                    text = "Good morning 👋",
+                    text = "Hello 👋",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
@@ -172,11 +190,9 @@ fun HomeAppBar(
                 )
             }
         },
-
         actions = {
             IconButton(onClick = onCartClick) {
                 BadgedBox(badge = {
-                    // Show cart item count
                     Text("3")
                 }) {
                     Icon(Icons.Outlined.ShoppingCart, contentDescription = "Cart")
@@ -185,17 +201,17 @@ fun HomeAppBar(
 
             IconButton(onClick = onProfileClick) {
                 AsyncImage(
-                    model = currentUser?.avatarUrl ?: "",
+                    model = getCloudinaryUrl(currentUser?.avatarUrl, width = 100, height = 100),
                     contentDescription = "Profile",
                     modifier = Modifier
                         .size(32.dp)
                         .clip(CircleShape),
                     placeholder = painterResource(R.drawable.placeholder_profile),
-                    error = painterResource(R.drawable.placeholder_profile)
+                    error = painterResource(R.drawable.placeholder_profile),
+                    contentScale = ContentScale.Crop
                 )
             }
         }
-
     )
 }
 
@@ -231,7 +247,6 @@ fun SearchBar(
                     searchText = it
                     onSearch(it)
                 },
-
                 modifier = Modifier.weight(1f),
                 placeholder = { Text("Search for restaurants or food...") },
                 colors = TextFieldDefaults.colors(
@@ -248,7 +263,6 @@ fun SearchBar(
                     Icon(Icons.Outlined.Close, contentDescription = "Clear")
                 }
             }
-
         }
     }
 }
@@ -381,11 +395,13 @@ fun FeaturedRestaurantCard(
         shape = MaterialTheme.shapes.large,
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
-
         Column {
             Box(modifier = Modifier.height(160.dp)) {
+                // Use the provided sample URL as a fallback for testing if coverImageUrl is missing
+                val imageUrl = restaurant.coverImageUrl ?: "v1758614777/nmdqnxmzs3fh4kmasbna.jpg"
+                
                 AsyncImage(
-                    model = restaurant.coverImageUrl ?: "",
+                    model = getCloudinaryUrl(imageUrl, width = 600, height = 300),
                     contentDescription = restaurant.name,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop,
@@ -393,7 +409,6 @@ fun FeaturedRestaurantCard(
                     error = painterResource(R.drawable.placeholder_restaurant)
                 )
 
-                // Rating badge
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
@@ -422,8 +437,8 @@ fun FeaturedRestaurantCard(
                             )
                         }
                     }
+                }
             }
-        }
 
             Column(
                 modifier = Modifier.padding(16.dp)
@@ -465,8 +480,8 @@ fun FeaturedRestaurantCard(
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
                 }
-                }
             }
+        }
     }
 }
 
@@ -485,7 +500,7 @@ fun NearbyRestaurantsSection(
                 .padding(horizontal = 16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
-        ){
+        ) {
             Text(
                 text = "Nearby Restaurants",
                 style = MaterialTheme.typography.titleLarge,
@@ -502,11 +517,11 @@ fun NearbyRestaurantsSection(
         if (isLoading) {
             NearbyRestaurantsShimmer()
         } else {
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                contentPadding = PaddingValues(horizontal = 16.dp)
+            Column(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                items(restaurants) { restaurant ->
+                restaurants.forEach { restaurant ->
                     NearbyRestaurantCard(
                         restaurant = restaurant,
                         onClick = { onRestaurantClick(restaurant.id) }
@@ -533,9 +548,11 @@ fun NearbyRestaurantCard(
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            // Restaurant image
+            // Use fallback image if logoUrl is missing
+            val logoUrl = restaurant.logoUrl ?: "v1758614777/nmdqnxmzs3fh4kmasbna.jpg"
+
             AsyncImage(
-                model = restaurant.logoUrl ?: "",
+                model = getCloudinaryUrl(logoUrl, width = 200, height = 200),
                 contentDescription = restaurant.name,
                 modifier = Modifier
                     .size(80.dp)
@@ -547,7 +564,6 @@ fun NearbyRestaurantCard(
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            // Restaurant details
             Column(
                 modifier = Modifier.weight(1f)
             ) {
@@ -607,7 +623,8 @@ fun NearbyRestaurantCard(
 @Composable
 fun BottomNavigationBar(
     selectedRoute: String,
-    onOrdersClick: () -> Unit
+    onOrdersClick: () -> Unit,
+    onProfileClick: () -> Unit
 ) {
     NavigationBar(
         containerColor = MaterialTheme.colorScheme.surface,
@@ -642,7 +659,7 @@ fun BottomNavigationBar(
 
         NavigationBarItem(
             selected = selectedRoute == "profile",
-            onClick = { /* Navigate to profile */ },
+            onClick = onProfileClick,
             icon = {
                 Icon(Icons.Outlined.Person, contentDescription = "Profile")
             },
@@ -650,4 +667,3 @@ fun BottomNavigationBar(
         )
     }
 }
-

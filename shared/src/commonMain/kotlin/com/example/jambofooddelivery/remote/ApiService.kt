@@ -1,5 +1,6 @@
 package com.example.jambofooddelivery.remote
 import com.example.jambofooddelivery.models.Address
+import com.example.jambofooddelivery.models.AuthResponse
 import com.example.jambofooddelivery.models.ChatMessage
 import com.example.jambofooddelivery.models.ChatRoom
 import com.example.jambofooddelivery.models.Location
@@ -19,8 +20,8 @@ import io.ktor.http.*
 import kotlinx.serialization.Serializable
 
 interface ApiService {
-    suspend fun login(request: LoginRequest): ApiResponse<User>
-    suspend fun register(request: RegisterRequest): ApiResponse<User>
+    suspend fun login(request: LoginRequest): ApiResponse<AuthResponse>
+    suspend fun register(request: RegisterRequest): ApiResponse<AuthResponse>
     suspend fun getRestaurants(location: Location): ApiResponse<List<Restaurant>>
     suspend fun getRestaurantMenu(restaurantId: String): ApiResponse<Restaurant>
     suspend fun createOrder(request: CreateOrderRequest): ApiResponse<OrderResponse>
@@ -45,9 +46,9 @@ interface ApiService {
 
 class ApiServiceImpl(private val client: HttpClient) : ApiService {
 
-    override suspend fun login(request: LoginRequest): ApiResponse<User> {
+    override suspend fun login(request: LoginRequest): ApiResponse<AuthResponse> {
         return try {
-            val response: ApiResponse<User> = client.post("auth/login") {
+            val response: ApiResponse<AuthResponse> = client.post("auth/login") {
                 contentType(ContentType.Application.Json)
                 setBody(request)
             }.body()
@@ -69,9 +70,9 @@ class ApiServiceImpl(private val client: HttpClient) : ApiService {
         }
     }
 
-    override suspend fun register(request: RegisterRequest): ApiResponse<User> {
+    override suspend fun register(request: RegisterRequest): ApiResponse<AuthResponse> {
         return try {
-            val response: ApiResponse<User> = client.post("auth/register") {
+            val response: ApiResponse<AuthResponse> = client.post("auth/register") {
                 contentType(ContentType.Application.Json)
                 setBody(request)
             }.body()

@@ -8,18 +8,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.example.jambofooddelivery.repositories.AuthRepository
 import com.example.jambofooddelivery.ui.screens.CartScreen
 import com.example.jambofooddelivery.ui.screens.CheckoutScreen
 import com.example.jambofooddelivery.ui.screens.HomeScreen
+import com.example.jambofooddelivery.ui.screens.LocationPermissionScreen
 import com.example.jambofooddelivery.ui.screens.LoginScreen
 import com.example.jambofooddelivery.ui.screens.OrderTrackingScreen
 import com.example.jambofooddelivery.ui.screens.OrdersScreen
@@ -28,11 +26,11 @@ import com.example.jambofooddelivery.ui.screens.RegisterScreen
 import com.example.jambofooddelivery.ui.screens.RestaurantDetailScreen
 import com.example.jambofooddelivery.ui.screens.SplashScreen
 import com.example.jambofooddelivery.ui.theme.JamboFoodDeliveryTheme
-import org.koin.compose.koinInject
 
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
@@ -50,40 +48,60 @@ fun JamboFoodDeliveryApp() {
             color = MaterialTheme.colorScheme.background
         ){
             val navController = rememberNavController()
-            val authRepository: AuthRepository = koinInject()
-            val isLoggedIn by authRepository.getCurrentUser().collectAsState(initial = null)
-
-            LaunchedEffect(isLoggedIn) {
-                if (isLoggedIn != null) {
-                    navController.navigate("home") {
-                        popUpTo("splash") { inclusive = true }
-                    }
-                }
-            }
 
             NavHost(
                 navController = navController,
-
                 startDestination = "splash"
             ) {
                 composable("splash") {
                     SplashScreen(
-                        onNavigateToLogin = { navController.navigate("login") },
-                        onNavigateToHome = { navController.navigate("home") }
+                        onNavigateToLogin = { 
+                            navController.navigate("login") {
+                                popUpTo("splash") { inclusive = true }
+                            }
+                        },
+                        onNavigateToHome = { 
+                            navController.navigate("home") {
+                                popUpTo("splash") { inclusive = true }
+                            }
+                        }
                     )
                 }
 
                 composable("login") {
                     LoginScreen(
-                        onLoginSuccess = { navController.navigate("home") },
+                        onLoginSuccess = { 
+                            navController.navigate("location-permission") {
+                                popUpTo("login") { inclusive = true }
+                            }
+                        },
                         onNavigateToRegister = { navController.navigate("register") }
                     )
                 }
 
                 composable("register") {
                     RegisterScreen(
-                        onRegisterSuccess = { navController.navigate("home") },
+                        onRegisterSuccess = { 
+                            navController.navigate("location-permission") {
+                                popUpTo("register") { inclusive = true }
+                            }
+                        },
                         onNavigateToLogin = { navController.navigate("login") }
+                    )
+                }
+
+                composable("location-permission") {
+                    LocationPermissionScreen(
+                        onLocationGranted = { 
+                            navController.navigate("home") {
+                                popUpTo("location-permission") { inclusive = true }
+                            }
+                        },
+                        onSkip = { 
+                            navController.navigate("home") {
+                                popUpTo("location-permission") { inclusive = true }
+                            }
+                        }
                     )
                 }
 
@@ -143,7 +161,11 @@ fun JamboFoodDeliveryApp() {
                 composable("profile") {
                     ProfileScreen(
                         onBack = { navController.popBackStack() },
-                        onLogout = { navController.navigate("login") }
+                        onLogout = { 
+                            navController.navigate("login") {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        }
                     )
                 }
             }
