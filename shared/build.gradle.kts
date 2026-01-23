@@ -63,6 +63,9 @@ kotlin {
             // Logger
             implementation("io.github.aakira:napier:2.6.1")
 
+            // Cloudinary URL Gen (Common)
+            implementation("com.cloudinary:kotlin-url-gen:1.7.0")
+
         }
         androidMain.dependencies {
             implementation(libs.tehras.charts)
@@ -86,8 +89,7 @@ kotlin {
             implementation("com.google.firebase:firebase-crashlytics")
             implementation("com.google.firebase:firebase-messaging")
 
-            // Cloudinary
-            implementation("com.cloudinary:cloudinary-android:2.3.1")
+
         }
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)

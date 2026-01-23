@@ -1,5 +1,6 @@
 package com.example.jambofooddelivery.preferences
 
+import com.example.jambofooddelivery.models.Location
 import com.example.jambofooddelivery.models.User
 import com.russhwolf.settings.Settings
 import com.russhwolf.settings.contains
@@ -16,6 +17,9 @@ class AppSettings(private val settings: Settings) {
         private const val KEY_TOKEN = "token"
         private const val KEY_FCM_TOKEN = "fcm_token"
         private const val KEY_LOCATION_ENABLED = "location_enabled"
+        private const val KEY_CACHED_LAT = "cached_lat"
+        private const val KEY_CACHED_LNG = "cached_lng"
+        private const val KEY_CACHED_ADDRESS = "cached_address"
     }
 
     fun saveUser(user: User) {
@@ -62,6 +66,30 @@ class AppSettings(private val settings: Settings) {
 
     fun isLocationEnabled(): Boolean {
         return settings.getBoolean(KEY_LOCATION_ENABLED, false)
+    }
+
+    fun saveCachedLocation(location: Location, address: String?) {
+        settings[KEY_CACHED_LAT] = location.latitude.toString()
+        settings[KEY_CACHED_LNG] = location.longitude.toString()
+        if (address != null) {
+            settings[KEY_CACHED_ADDRESS] = address
+        }
+    }
+
+    fun getCachedLocation(): Location? {
+        val lat = settings.getStringOrNull(KEY_CACHED_LAT)?.toDoubleOrNull()
+        val lng = settings.getStringOrNull(KEY_CACHED_LNG)?.toDoubleOrNull()
+        val address = settings.getStringOrNull(KEY_CACHED_ADDRESS)
+        
+        return if (lat != null && lng != null) {
+            Location(latitude = lat, longitude = lng, address = address)
+        } else {
+            null
+        }
+    }
+
+    fun getCachedAddress(): String? {
+        return settings.getStringOrNull(KEY_CACHED_ADDRESS)
     }
 }
 

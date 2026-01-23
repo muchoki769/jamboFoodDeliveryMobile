@@ -1,5 +1,6 @@
 package com.example.jambofooddelivery.ui.ViewModels
 
+import com.example.jambofooddelivery.domain.UpdateLocationUseCase
 import com.example.jambofooddelivery.models.Location
 import com.example.jambofooddelivery.models.Order
 import com.example.jambofooddelivery.models.ProfileUpdate
@@ -40,6 +41,7 @@ class ProfileViewModel : BaseViewModel<ProfileState, ProfileEvent>(ProfileState(
     private val orderRepository: OrderRepository by inject()
     private val authRepository: AuthRepository by inject()
     private val locationRepository: LocationRepository by inject()
+    private val updateLocationUseCase: UpdateLocationUseCase by inject()
 
     init {
         loadUserProfile()
@@ -87,6 +89,11 @@ class ProfileViewModel : BaseViewModel<ProfileState, ProfileEvent>(ProfileState(
             if (locationRepository.hasLocationPermission()) {
                 val location = locationRepository.getCurrentLocation()
                 if (location != null) {
+                    val user = state.value.user
+                    if (user != null) {
+                        updateLocationUseCase(location, user.id)
+                    }
+                    
                     val addressResult = locationRepository.reverseGeocode(location)
                     setState { 
                         it.copy(
@@ -126,6 +133,11 @@ class ProfileViewModel : BaseViewModel<ProfileState, ProfileEvent>(ProfileState(
             when (val result = locationRepository.geocodeAddress(address)) {
                 is Result.Success -> {
                     val location = result.data
+                    val user = state.value.user
+                    if (user != null) {
+                        updateLocationUseCase(location, user.id)
+                    }
+
                     setState { 
                         it.copy(
                             isUpdatingLocation = false,

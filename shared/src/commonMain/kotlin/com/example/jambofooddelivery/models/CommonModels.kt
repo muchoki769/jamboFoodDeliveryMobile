@@ -20,7 +20,10 @@ data class User(
     @SerialName("created_at")
     val createdAt: Instant,
     @SerialName("updated_at")
-    val updatedAt: Instant
+    val updatedAt: Instant,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+    val address: String? = null
 ) {
     val fullName: String
         get() = "$firstName $lastName"
@@ -56,18 +59,32 @@ data class Restaurant(
     @SerialName("logo_url")
     val logoUrl: String? = null,
     val address: Address,
-    val location: Location,
-    val rating: Double,
+    @SerialName("location")
+    val locationHex: String? = null, // Captures the PostGIS hex string
+    val rating: String = "0.0", // Backend returns DECIMAL as String
     @SerialName("delivery_time_range")
     val deliveryTimeRange: String,
     @SerialName("minimum_order")
-    val minimumOrder: Double,
+    val minimumOrder: String = "0.0", // Backend returns DECIMAL as String
     @SerialName("delivery_fee")
-    val deliveryFee: Double,
+    val deliveryFee: String = "0.0", // Backend returns DECIMAL as String
     @SerialName("is_active")
     val isActive: Boolean,
+    val latitude: Double? = null, // Top-level lat from backend
+    val longitude: Double? = null, // Top-level lng from backend
     val categories: List<MenuCategory> = emptyList()
-)
+) {
+    // Helper properties to maintain compatibility with existing UI code
+    val ratingDouble: Double get() = rating.toDoubleOrNull() ?: 0.0
+    val deliveryFeeDouble: Double get() = deliveryFee.toDoubleOrNull() ?: 0.0
+    val minimumOrderDouble: Double get() = minimumOrder.toDoubleOrNull() ?: 0.0
+    
+    // Improved location helper to check both top-level and address fields
+    val location: Location get() = Location(
+        latitude = latitude ?: address.latitude ?: 0.0,
+        longitude = longitude ?: address.longitude ?: 0.0
+    )
+}
 
 @Serializable
 data class MenuCategory(
@@ -155,23 +172,25 @@ data class OrderItem(
 
 @Serializable
 data class Address(
-    val street: String,
-    val city: String,
-    val state: String,
-    @SerialName("zip_code")
-    val zipCode: String,
-    val country: String,
-    val latitude: Double,
-    val longitude: Double
+    val street: String? = null,
+    val city: String? = null,
+    val state: String? = null,
+    @SerialName("postal_code")
+    val postalCode: String? = null,
+    val country: String? = null,
+    val phone: String? = null,
+    val latitude: Double? = null,
+    val longitude: Double? = null
 ) {
     val fullAddress: String
-        get() = "$street, $city, $state $zipCode"
+        get() = listOfNotNull(street, city, country).joinToString(", ")
 }
 
 @Serializable
 data class Location(
-    val latitude: Double,
-    val longitude: Double
+    val latitude: Double = 0.0,
+    val longitude: Double = 0.0,
+    val address: String? = null
 )
 
 @Serializable
@@ -262,14 +281,3 @@ data class CloudinaryResponse(
     val public_id: String,
     val version: Int
 )
-
-//@Serializable
-//data class PaymentResponse(
-//    val status: String,
-//    @SerialName("payment_id")
-//    val paymentId: String,
-//    @SerialName("client_secret")
-//    val clientSecret: String? = null
-//)
-
-

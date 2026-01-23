@@ -18,6 +18,7 @@ import io.ktor.http.*
 
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerialName
 
 interface ApiService {
     suspend fun login(request: LoginRequest): ApiResponse<AuthResponse>
@@ -83,13 +84,17 @@ class ApiServiceImpl(private val client: HttpClient) : ApiService {
     }
 
     override suspend fun getRestaurants(location: Location): ApiResponse<List<Restaurant>> {
+         println("DEBUG: getRestaurants called with location: $location")
          return try {
             val response: ApiResponse<List<Restaurant>> = client.get("restaurants") {
                 parameter("lat", location.latitude)
                 parameter("lng", location.longitude)
+                parameter("radius", 500000) //within 5km
             }.body()
+            println("DEBUG: getRestaurants response success: ${response.success}, count: ${response.data?.size}")
             response
         } catch (e: Exception) {
+            println("DEBUG: getRestaurants error: ${e.message}")
             ApiResponse.Error(e.message ?: "Failed to fetch restaurants")
         }
     }
@@ -189,11 +194,11 @@ class ApiServiceImpl(private val client: HttpClient) : ApiService {
 
     override suspend fun updateLocation(userId: String, location: Location): ApiResponse<Unit> {
         return try {
-             client.put("users/$userId/location") {
+             val response: ApiResponse<Unit> = client.put("users/$userId/location") {
                 contentType(ContentType.Application.Json)
                 setBody(location)
-            }
-            ApiResponse.Success(Unit)
+            }.body()
+            response
         } catch (e: Exception) {
             ApiResponse.Error(e.message ?: "Failed to update location")
         }
@@ -224,24 +229,30 @@ class ApiServiceImpl(private val client: HttpClient) : ApiService {
     }
 
     override suspend fun geocodeAddress(address: String): ApiResponse<Location> {
+        println("DEBUG: geocodeAddress called with address: $address")
         return try {
             val response: ApiResponse<Location> = client.get("location/geocode") {
                 parameter("address", address)
             }.body()
+            println("DEBUG: geocodeAddress response: $response")
             response
         } catch (e: Exception) {
+            println("DEBUG: geocodeAddress error: ${e.message}")
              ApiResponse.Error(e.message ?: "Geocoding failed")
         }
     }
 
     override suspend fun reverseGeocode(location: Location): ApiResponse<String> {
+        println("DEBUG: reverseGeocode called with location: $location")
         return try {
             val response: ApiResponse<String> = client.get("location/reverse-geocode") {
-                 parameter("lat", location.latitude)
+                parameter("lat", location.latitude)
                 parameter("lng", location.longitude)
             }.body()
+            println("DEBUG: reverseGeocode response: $response")
             response
         } catch (e: Exception) {
+            println("DEBUG: reverseGeocode error: ${e.message}")
             ApiResponse.Error(e.message ?: "Reverse geocoding failed")
         }
     }
@@ -260,8 +271,8 @@ class ApiServiceImpl(private val client: HttpClient) : ApiService {
     
     override suspend fun markMessagesAsRead(roomId: String): ApiResponse<Unit> {
          return try {
-             client.put("chats/$roomId/read") 
-             ApiResponse.Success(Unit)
+             val response: ApiResponse<Unit> = client.put("chats/$roomId/read").body()
+             response
         } catch (e: Exception) {
             ApiResponse.Error(e.message ?: "Failed to mark messages as read")
         }
@@ -314,7 +325,9 @@ data class LoginRequest(val email: String, val password: String)
 data class RegisterRequest(
     val email: String,
     val password: String,
+    @SerialName("first_name")
     val firstName: String,
+    @SerialName("last_name")
     val lastName: String,
     val phone: String
 )
@@ -378,7 +391,9 @@ data class SendMessageRequest(
 
 @Serializable
 data class ProfileUpdate(
+    @SerialName("first_name")
     val firstName: String? = null,
+    @SerialName("last_name")
     val lastName: String? = null,
     val phone: String? = null,
     val avatarUrl: String? = null

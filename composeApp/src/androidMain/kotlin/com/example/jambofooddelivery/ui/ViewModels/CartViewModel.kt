@@ -26,7 +26,7 @@ class CartViewModel : BaseViewModel<CartState, CartEvent>(CartState()), KoinComp
         setState {
             it.copy(
                 restaurant = restaurant,
-                deliveryFee = restaurant?.deliveryFee ?: 0.0
+                deliveryFee = restaurant?.deliveryFeeDouble ?: 0.0
             )
         }
         calculateTotals()

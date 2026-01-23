@@ -22,6 +22,10 @@ kotlin {
             implementation(libs.androidx.activity.compose)
             implementation(libs.koin.androidx.compose)
             implementation(libs.androidx.core.splashscreen)
+            
+            // Coil 3 Android specific
+            implementation("io.coil-kt.coil3:coil:3.0.4")
+            implementation("io.coil-kt.coil3:coil-network-okhttp:3.0.4")
         }
         commonMain.dependencies {
             implementation(compose.runtime)
@@ -40,7 +44,9 @@ kotlin {
             implementation(libs.koin.core)
             implementation(libs.koin.androidx.compose)
             implementation(libs.androidx.navigation.compose)
-            implementation("io.coil-kt.coil3:coil-compose:3.3.0")
+            
+            // Coil 3 for Image Loading
+            implementation("io.coil-kt.coil3:coil-compose:3.0.4")
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

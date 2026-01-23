@@ -173,13 +173,13 @@ class CheckoutViewModel : BaseViewModel<CheckoutState, CheckoutEvent>(CheckoutSt
             val location = locationRepository.getCurrentLocation()
             location?.let {
                 when (val result = locationRepository.reverseGeocode(it)) {
-                    is Result.Success<*> -> {
+                    is Result.Success -> {
                         val addressString = result.data
                         val address = Address(
-                            street = addressString as String,
-                            city = "Nairobi", // Fallback or parse
+                            street = addressString,
+                            city = "Nairobi", // Fallback or parse from addressString
                             state = "Nairobi",
-                            zipCode = "00100",
+                            postalCode = "00100",
                             country = "Kenya",
                             latitude = it.latitude,
                             longitude = it.longitude

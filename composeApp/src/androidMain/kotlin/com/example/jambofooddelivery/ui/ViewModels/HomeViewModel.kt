@@ -1,17 +1,12 @@
 package com.example.jambofooddelivery.ui.ViewModels
 
 
-import androidx.compose.foundation.Image
+import android.util.Log
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Fastfood
 import androidx.compose.material.icons.outlined.Icecream
 import androidx.compose.material.icons.outlined.LocalDrink
 import androidx.compose.material.icons.outlined.LocalPizza
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import com.example.jambofooddelivery.domain.GetRestaurantsUseCase
 import com.example.jambofooddelivery.domain.UpdateLocationUseCase
 import com.example.jambofooddelivery.models.Location
@@ -19,14 +14,9 @@ import com.example.jambofooddelivery.models.Restaurant
 import com.example.jambofooddelivery.repositories.LocationRepository
 import com.example.jambofooddelivery.utils.Result
 import com.example.jambofooddelivery.data.Category
-import kotlinx.coroutines.flow.update
+import com.example.jambofooddelivery.preferences.AppSettings
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
-import kotlin.math.atan2
-import kotlin.math.cos
-import kotlin.math.pow
-import kotlin.math.sin
-import kotlin.math.sqrt
 
 
 
@@ -38,7 +28,8 @@ data class HomeState(
     val searchQuery: String = "",
     val selectedCategory: String? = null,
     val error: String? = null,
-    val userLocation: Location? = null
+    val userLocation: Location? = null,
+    val address: String? = null
 )
 
 sealed class HomeEvent {
@@ -52,6 +43,7 @@ class HomeViewModel : BaseViewModel<HomeState, HomeEvent>(HomeState()), KoinComp
     private val getRestaurantsUseCase: GetRestaurantsUseCase by inject()
     private val locationRepository: LocationRepository by inject()
     private val updateLocationUseCase: UpdateLocationUseCase by inject()
+    private val appSettings: AppSettings by inject()
 
     init {
         loadCategories()
@@ -60,30 +52,30 @@ class HomeViewModel : BaseViewModel<HomeState, HomeEvent>(HomeState()), KoinComp
 
     fun loadRestaurants() {
         launch {
-            setState { it.copy(isLoading = true, error = null) }
-
             val location = state.value.userLocation
             if (location == null) {
-                setState { it.copy(isLoading = false) }
+                Log.d("HomeViewModel", "Cannot load restaurants: userLocation is null")
+                setState { it.copy(address = "Update Location") }
                 return@launch
             }
+            
+            Log.d("HomeViewModel", "Loading restaurants for: ${location.latitude}, ${location.longitude}")
+            setState { it.copy(isLoading = true, error = null) }
+            
             when (val result = getRestaurantsUseCase(location)) {
                 is Result.Success -> {
+                    Log.d("HomeViewModel", "Loaded ${result.data.size} restaurants from repository")
                     setState {
                         it.copy(
                             isLoading = false,
-                            featuredRestaurants = result.data.filter { it.rating >= 4.5 },
-                            nearbyRestaurants = result.data.sortedBy { restaurant ->
-                                calculateDistance(
-                                    state.value.userLocation!!,
-                                    restaurant.location
-                                )
-                            }
+                            featuredRestaurants = result.data.filter { r -> r.ratingDouble >= 4.0 },
+                            nearbyRestaurants = result.data
                         )
                     }
                 }
 
                 is Result.Error -> {
+                    Log.e("HomeViewModel", "Error loading restaurants: ${result.message}")
                     setState {
                         it.copy(
                             isLoading = false,
@@ -93,7 +85,6 @@ class HomeViewModel : BaseViewModel<HomeState, HomeEvent>(HomeState()), KoinComp
                     emitEvent(HomeEvent.ShowError(result.message))
                 }
                 is Result.Loading -> {
-                    // Already handled by initial setState
                 }
             }
         }
@@ -107,7 +98,6 @@ class HomeViewModel : BaseViewModel<HomeState, HomeEvent>(HomeState()), KoinComp
                 val location = state.value.userLocation
                 if (location != null) {
                     // Implement search logic here
-                    // This would call a search use case
                 }
             }
         }
@@ -115,7 +105,6 @@ class HomeViewModel : BaseViewModel<HomeState, HomeEvent>(HomeState()), KoinComp
 
     fun filterByCategory(category: Category) {
         setState { it.copy(selectedCategory = category.name) }
-        // Implement category filtering
     }
 
     fun onRestaurantClick(restaurantId: String) {
@@ -123,7 +112,7 @@ class HomeViewModel : BaseViewModel<HomeState, HomeEvent>(HomeState()), KoinComp
     }
 
     fun retry() {
-        loadRestaurants()
+        requestLocationAndLoadRestaurants()
     }
 
     fun clearError() {
@@ -132,17 +121,6 @@ class HomeViewModel : BaseViewModel<HomeState, HomeEvent>(HomeState()), KoinComp
 
 
     private fun loadCategories() {
-//        val categories = listOf(
-//            Category("Pizza", "ic_pizza"),
-//            Category("Burger", "ic_burger"),
-//            Category("Sushi", "ic_sushi"),
-//            Category("Mexican", "ic_mexican"),
-//            Category("Asian", "ic_asian"),
-//            Category("Desserts", "ic_dessert"),
-//            Category("Healthy", "ic_healthy"),
-//            Category("Coffee", "ic_coffee")
-//        )
-
         val categories = listOf(
             Category("Pizza", Icons.Outlined.LocalPizza),
             Category("Burgers", Icons.Outlined.Fastfood),
@@ -158,47 +136,36 @@ class HomeViewModel : BaseViewModel<HomeState, HomeEvent>(HomeState()), KoinComp
 
     private fun requestLocationAndLoadRestaurants() {
         launch {
+            // 1. Check permissions and get fresh location
             if (locationRepository.hasLocationPermission()) {
                 val location = locationRepository.getCurrentLocation()
-                setState { it.copy(userLocation = location) }
-
-                location?.let {
-                    updateLocationUseCase(it, "")//TODO pass a userId
+                
+                if (location != null) {
+                    val addressResult = locationRepository.reverseGeocode(location)
+                    val addressStr = if (addressResult is Result.Success) addressResult.data else null
+                    
+                    appSettings.saveCachedLocation(location, addressStr)
+                    setState { it.copy(userLocation = location, address = addressStr) }
+                    
+                    updateLocationUseCase(location, "")
                     loadRestaurants()
+                    return@launch
                 }
+            }
+
+            // 2. Fallback to cache if fresh failed
+            val cachedLocation = appSettings.getCachedLocation()
+            val cachedAddress = appSettings.getCachedAddress()
+            
+            if (cachedLocation != null) {
+                Log.d("HomeViewModel", "Using cached location: ${cachedLocation.latitude}")
+                setState { it.copy(userLocation = cachedLocation, address = cachedAddress) }
+                loadRestaurants()
             } else {
+                Log.d("HomeViewModel", "No location available (fresh or cached)")
+                setState { it.copy(address = "Update Location") }
                 emitEvent(HomeEvent.LocationPermissionDenied)
             }
         }
     }
-
-    private fun calculateDistance(location1: Location, location2: Location): Double {
-        val earthRadius = 6371.0 // kilometers
-
-        val lat1 = Math.toRadians(location1.latitude)
-        val lon1 = Math.toRadians(location1.longitude)
-        val lat2 = Math.toRadians(location2.latitude)
-        val lon2 = Math.toRadians(location2.longitude)
-
-        val dLat = lat2 - lat1
-        val dLon = lon2 - lon1
-
-        val a = sin(dLat / 2).pow(2) + cos(lat1) * cos(lat2) * sin(dLon / 2).pow(2)
-        val c = 2 * atan2(sqrt(a), sqrt(1 - a))
-
-        return earthRadius * c
-    }
 }
-
-//@Composable
-//fun CategoryItem(category: Category) {
-//    val iconId = remember(category.iconRes) {
-//        val context = LocalContext.current
-//        context.resources.getIdentifier(category.iconRes, "drawable", context.packageName)
-//    }
-//
-//    Image(
-//        painter = painterResource(id = iconId),
-//        contentDescription = category.name
-//    )
-//}

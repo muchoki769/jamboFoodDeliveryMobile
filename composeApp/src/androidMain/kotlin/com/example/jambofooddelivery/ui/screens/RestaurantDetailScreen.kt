@@ -86,11 +86,12 @@ fun RestaurantDetailScreen(
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text("${state.totalCartItems} items")
-                            Text("View Cart")
-                            Text("$${"%.2f".format(state.totalCartAmount)}")
+                            Text("View Cart", fontWeight = FontWeight.Bold)
+                            Text("KSh ${"%.0f".format(state.totalCartAmount)}")
                         }
                     }
                 }
@@ -109,7 +110,7 @@ fun RestaurantDetailScreen(
             ) {
                 // Restaurant Header
                 item {
-                    RestaurantHeader(state.restaurant?.coverImageUrl, state.restaurant?.name, state.restaurant?.rating ?: 0.0)
+                    RestaurantHeader(state.restaurant?.coverImageUrl, state.restaurant?.name, state.restaurant?.ratingDouble ?: 0.0)
                 }
 
                 // Restaurant Info
@@ -128,31 +129,53 @@ fun RestaurantDetailScreen(
                     }
                 }
 
-                // Categories
+                // Categories Row
                 item {
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.padding(vertical = 8.dp)
-                    ) {
-                        items(state.restaurant?.categories ?: emptyList()) { category ->
-                            FilterChip(
-                                selected = state.selectedCategory == category.name,
-                                onClick = { viewModel.selectCategory(category.name) },
-                                label = { Text(category.name) }
-                            )
+                    val categories = state.restaurant?.categories ?: emptyList()
+                    if (categories.isNotEmpty()) {
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        ) {
+                            items(categories, key = { it.id }) { category ->
+                                FilterChip(
+                                    selected = state.selectedCategory == category.name,
+                                    onClick = { viewModel.selectCategory(category.name) },
+                                    label = { Text(category.name) }
+                                )
+                            }
                         }
                     }
                 }
 
-                // Menu Items
+                // Menu Items for Selected Category
                 val selectedCategory = state.restaurant?.categories?.find { it.name == state.selectedCategory }
-                items(selectedCategory?.items ?: emptyList()) { menuItem ->
-                    MenuItemRow(
-                        menuItem = menuItem,
-                        onAddClick = { viewModel.addToCart(menuItem) }
-                    )
+                val menuItems = selectedCategory?.items ?: emptyList()
+
+                if (menuItems.isEmpty()) {
+                    item {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().padding(32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "No items available in this category",
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                            )
+                        }
+                    }
+                } else {
+                    items(menuItems, key = { it.id }) { menuItem ->
+                        MenuItemRow(
+                            menuItem = menuItem,
+                            onAddClick = { viewModel.addToCart(menuItem) }
+                        )
+                    }
                 }
+                
+                // Extra spacer for bottom bar
+                item { Spacer(modifier = Modifier.height(80.dp)) }
             }
         }
     }
@@ -169,7 +192,7 @@ fun RestaurantHeader(imageUrl: String?, name: String?, rating: Double) {
             placeholder = painterResource(R.drawable.placeholder_restaurant),
             error = painterResource(R.drawable.placeholder_restaurant)
         )
-        
+
         Card(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
@@ -203,7 +226,11 @@ fun MenuItemRow(menuItem: MenuItem, onAddClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = menuItem.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text(
+                    text = menuItem.name, 
+                    style = MaterialTheme.typography.titleMedium, 
+                    fontWeight = FontWeight.SemiBold
+                )
                 Text(
                     text = menuItem.description ?: "",
                     style = MaterialTheme.typography.bodySmall,
@@ -212,11 +239,16 @@ fun MenuItemRow(menuItem: MenuItem, onAddClick: () -> Unit) {
                     overflow = TextOverflow.Ellipsis
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(text = "$${"%.2f".format(menuItem.price)}", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                Text(
+                    text = "KSh ${"%.0f".format(menuItem.price)}", 
+                    style = MaterialTheme.typography.titleSmall, 
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
             }
-            
+
             Spacer(modifier = Modifier.width(16.dp))
-            
+
             Box {
                 AsyncImage(
                     model = getCloudinaryUrl(menuItem.imageUrl, width = 200, height = 200),
@@ -228,7 +260,7 @@ fun MenuItemRow(menuItem: MenuItem, onAddClick: () -> Unit) {
                     placeholder = painterResource(R.drawable.placeholder_restaurant),
                     error = painterResource(R.drawable.placeholder_restaurant)
                 )
-                
+
                 IconButton(
                     onClick = onAddClick,
                     modifier = Modifier
@@ -237,7 +269,12 @@ fun MenuItemRow(menuItem: MenuItem, onAddClick: () -> Unit) {
                         .background(MaterialTheme.colorScheme.primary, CircleShape)
                         .size(32.dp)
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = "Add", tint = Color.White, modifier = Modifier.size(20.dp))
+                    Icon(
+                        Icons.Default.Add, 
+                        contentDescription = "Add", 
+                        tint = Color.White, 
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             }
         }

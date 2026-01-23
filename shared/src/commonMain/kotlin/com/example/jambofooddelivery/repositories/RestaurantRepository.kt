@@ -1,11 +1,12 @@
 package com.example.jambofooddelivery.repositories
 
-import com.example.jambofooddelivery.cache.AppDatabase
 import com.example.jambofooddelivery.cache.Database
+import com.example.jambofooddelivery.models.Address
 import com.example.jambofooddelivery.models.Location
 import com.example.jambofooddelivery.models.Restaurant
 import com.example.jambofooddelivery.remote.ApiService
 import com.example.jambofooddelivery.utils.Result
+import io.github.aakira.napier.Napier
 
 interface RestaurantRepository {
     suspend fun getRestaurants(location: Location): Result<List<Restaurant>>
@@ -24,32 +25,48 @@ class RestaurantRepositoryImpl(
         return try {
             val response = apiService.getRestaurants(location)
             if (response.success && response.data != null) {
-
+                // Save to local DB
                 response.data.forEach { restaurant ->
-                    db.restaurantQueries.insertRestaurant(
-                        id = restaurant.id,
-                        name = restaurant.name,
-                        description = restaurant.description,
-                        cover_image_url = restaurant.coverImageUrl,
-                        logo_url = restaurant.logoUrl,
-                        address = restaurant.address.fullAddress,
-                        latitude = restaurant.location.latitude,
-                        longitude = restaurant.location.longitude,
-                        rating = restaurant.rating,
-                        delivery_time_range = restaurant.deliveryTimeRange,
-                        minimum_order = restaurant.minimumOrder,
-                        delivery_fee = restaurant.deliveryFee,
-                        is_active = restaurant.isActive
-                    )
+                    try {
+                        db.restaurantQueries.insertRestaurant(
+                            id = restaurant.id,
+                            name = restaurant.name,
+                            description = restaurant.description,
+                            cover_image_url = restaurant.coverImageUrl,
+                            logo_url = restaurant.logoUrl,
+                            address = restaurant.address.fullAddress,
+                            latitude = restaurant.location.latitude,
+                            longitude = restaurant.location.longitude,
+                            rating = restaurant.ratingDouble,
+                            delivery_time_range = restaurant.deliveryTimeRange,
+                            minimum_order = restaurant.minimumOrderDouble,
+                            delivery_fee = restaurant.deliveryFeeDouble,
+                            is_active = restaurant.isActive
+                        )
+                    } catch (e: Exception) {
+                        Napier.e("Failed to cache restaurant ${restaurant.id}: ${e.message}")
+                    }
                 }
-
                 Result.Success(response.data)
             } else {
-                Result.Error(response.error ?: "Failed to load restaurants")
+                loadFromCache("API Error: ${response.error}")
             }
         } catch (e: Exception) {
-             // Fallback to cache would go here
-            Result.Error("Network error: ${e.message}")
+             Napier.e("Network fetch failed: ${e.message}")
+             loadFromCache("Network error: ${e.message}")
+        }
+    }
+
+    private fun loadFromCache(errorMessage: String): Result<List<Restaurant>> {
+        return try {
+            val cached = db.restaurantQueries.getRestaurants().executeAsList()
+            if (cached.isNotEmpty()) {
+                Result.Success(cached.map { it.toDomain() })
+            } else {
+                Result.Error(errorMessage)
+            }
+        } catch (e: Exception) {
+            Result.Error("Cache error: ${e.message}")
         }
     }
 
@@ -68,17 +85,16 @@ class RestaurantRepositoryImpl(
 
 
     override suspend fun searchRestaurants(query: String, location: Location): Result<List<Restaurant>> {
-        // ApiService doesn't have searchRestaurants yet, let's assume we should use getRestaurants for now or implement it
-        // The previous code called apiService.searchRestaurants which didn't exist in the interface shown earlier.
-        // We'll fix this by removing the call or implementing it.
-        // For now, let's implement a dummy search or filter on getRestaurants if possible, or just return empty.
-        
-        // Actually, let's try to filter getRestaurants results if the API doesn't support search directly yet, 
-        // or we need to add it to ApiService.
-        // But since I can edit ApiService, I will add it there in a moment.
-        // For this file compilation, I will comment it out or leave it if I add it to ApiService.
-        
-        return Result.Error("Search not implemented yet")
+        return try {
+            val response = apiService.searchRestaurants(query, location)
+            if (response.success && response.data != null) {
+                Result.Success(response.data)
+            } else {
+                Result.Error(response.error ?: "Search failed")
+            }
+        } catch (e: Exception) {
+            Result.Error("Search error: ${e.message}")
+        }
     }
 
     override suspend fun getRestaurantMenu(restaurantId: String): Result<Restaurant> {
@@ -95,9 +111,42 @@ class RestaurantRepositoryImpl(
     }
 
     override suspend fun getNearbyRestaurants(location: Location, radius: Int): Result<List<Restaurant>> {
-         // Similar to search, getNearbyRestaurants was not in ApiService interface.
-         // We should add it or reuse getRestaurants.
-         return getRestaurants(location)
+        return try {
+            val response = apiService.getNearbyRestaurants(location, radius)
+            if (response.success && response.data != null) {
+                Result.Success(response.data)
+            } else {
+                Result.Error(response.error ?: "Failed to load nearby restaurants")
+            }
+        } catch (e: Exception) {
+            Result.Error("Nearby fetch failed: ${e.message}")
+        }
     }
 
+    private fun com.example.jambofooddelivery.cache.Restaurant.toDomain(): Restaurant {
+        return Restaurant(
+            id = id,
+            name = name,
+            description = description,
+            coverImageUrl = cover_image_url,
+            logoUrl = logo_url,
+            address = Address(
+                street = address,
+                city = "",
+                state = "",
+                postalCode = "",
+                country = "",
+                latitude = latitude,
+                longitude = longitude
+            ),
+            rating = rating.toString(),
+            deliveryTimeRange = delivery_time_range,
+            minimumOrder = minimum_order.toString(),
+            deliveryFee = delivery_fee.toString(),
+            isActive = is_active ?: true,
+            latitude = latitude,
+            longitude = longitude,
+            categories = emptyList()
+        )
+    }
 }

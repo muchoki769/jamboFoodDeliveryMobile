@@ -1,6 +1,7 @@
 package com.example.jambofooddelivery.ui.screens
 
 
+import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.Schedule
@@ -74,29 +76,35 @@ import org.koin.compose.koinInject
 
 /**
  * Helper function to optimize Cloudinary URLs by adding transformation parameters.
- * It also handles cases where only a public ID or relative path is provided.
  */
 fun getCloudinaryUrl(url: String?, width: Int = 800, height: Int = 400): String {
     if (url.isNullOrBlank()) return ""
     
-    val cloudName = "dahss2ggd" // Your Cloudinary cloud name
+    val cloudName = "dahss2ggd"
     
-    // Construct full URL if it's just a public ID or relative path
-    val fullUrl = if (!url.startsWith("http")) {
-        val cleanPath = url.removePrefix("/")
-        "https://res.cloudinary.com/$cloudName/image/upload/$cleanPath"
+    // Clean input path: remove leading/trailing whitespace and slashes
+    val cleanPath = url.trim().removePrefix("/").removeSuffix("/")
+    
+    // Use the full URL directly if it starts with http
+    var fullUrl = if (cleanPath.startsWith("http")) {
+        cleanPath
     } else {
-        url
+        "https://res.cloudinary.com/$cloudName/image/upload/$cleanPath"
     }
-    
-    // Only apply transformations to Cloudinary URLs
-    return if (fullUrl.contains("cloudinary.com") && fullUrl.contains("/upload/")) {
-        // Inject transformations after '/upload/'
-        fullUrl.replace("/upload/", "/upload/w_$width,h_$height,c_fill,q_auto,f_auto/")
+
+    // Ensure we don't have double slashes after upload/
+    fullUrl = fullUrl.replace("/upload//", "/upload/")
+
+    // Inject parameters if it's a Cloudinary URL and doesn't already have them
+    return if (fullUrl.contains("cloudinary.com") && fullUrl.contains("/upload/") && !fullUrl.contains("/w_")) {
+        fullUrl.replace("/upload/", "/upload/w_$width,h_$height,c_limit,q_auto:eco,f_auto/")
     } else {
         fullUrl
     }
 }
+
+
+
 
 @Composable
 fun HomeScreen(
@@ -117,6 +125,7 @@ fun HomeScreen(
     Scaffold(
         topBar = {
             HomeAppBar(
+                address = state.address,
                 onProfileClick = onNavigateToProfile,
                 onCartClick = onNavigateToCart
             )
@@ -169,6 +178,7 @@ fun HomeScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeAppBar(
+    address: String?,
     onProfileClick: () -> Unit,
     onCartClick: () -> Unit
 ) {
@@ -178,13 +188,24 @@ fun HomeAppBar(
     TopAppBar(
         title = {
             Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Outlined.LocationOn,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = address ?: "Update Location",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
                 Text(
-                    text = "Hello 👋",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                )
-                Text(
-                    text = currentUser?.firstName ?: "Guest",
+                    text = if (currentUser != null) "Hello, ${currentUser?.firstName}" else "Welcome to Jambo Food",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -193,7 +214,7 @@ fun HomeAppBar(
         actions = {
             IconButton(onClick = onCartClick) {
                 BadgedBox(badge = {
-                    Text("3")
+                    Text("0")
                 }) {
                     Icon(Icons.Outlined.ShoppingCart, contentDescription = "Cart")
                 }
@@ -289,7 +310,7 @@ fun CategoriesSection(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             contentPadding = PaddingValues(horizontal = 16.dp)
         ) {
-            items(categories) { category ->
+            items(categories, key = { it.name }) { category ->
                 CategoryItem(
                     category = category,
                     onClick = { onCategorySelected(category) }
@@ -366,14 +387,20 @@ fun FeaturedRestaurantsSection(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        if (isLoading) {
+        if (isLoading && restaurants.isEmpty()) {
             FeaturedRestaurantsShimmer()
+        } else if (restaurants.isEmpty()) {
+            Text(
+                text = "No featured restaurants found",
+                modifier = Modifier.padding(horizontal = 16.dp),
+                style = MaterialTheme.typography.bodyMedium
+            )
         } else {
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 contentPadding = PaddingValues(horizontal = 16.dp)
             ) {
-                items(restaurants) { restaurant ->
+                items(restaurants, key = { it.id }) { restaurant ->
                     FeaturedRestaurantCard(
                         restaurant = restaurant,
                         onClick = { onRestaurantClick(restaurant.id) }
@@ -397,9 +424,9 @@ fun FeaturedRestaurantCard(
     ) {
         Column {
             Box(modifier = Modifier.height(160.dp)) {
-                // Use the provided sample URL as a fallback for testing if coverImageUrl is missing
-                val imageUrl = restaurant.coverImageUrl ?: "v1758614777/nmdqnxmzs3fh4kmasbna.jpg"
-                
+                // Prioritize full URL from API
+                val imageUrl = restaurant.coverImageUrl ?: "jgm2_bacz_180706_rrfo50.jpg"
+
                 AsyncImage(
                     model = getCloudinaryUrl(imageUrl, width = 600, height = 300),
                     contentDescription = restaurant.name,
@@ -431,7 +458,7 @@ fun FeaturedRestaurantCard(
                             Spacer(modifier = Modifier.width(2.dp))
 
                             Text(
-                                text = "%.1f".format(restaurant.rating),
+                                text = "%.1f".format(restaurant.ratingDouble),
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold
                             )
@@ -475,7 +502,7 @@ fun FeaturedRestaurantCard(
                     )
 
                     Text(
-                        text = "$${restaurant.deliveryFee} delivery",
+                        text = "KSh ${restaurant.deliveryFee} delivery",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
@@ -514,8 +541,14 @@ fun NearbyRestaurantsSection(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        if (isLoading) {
+        if (isLoading && restaurants.isEmpty()) {
             NearbyRestaurantsShimmer()
+        } else if (restaurants.isEmpty()) {
+            Text(
+                text = "No restaurants found nearby",
+                modifier = Modifier.padding(horizontal = 16.dp),
+                style = MaterialTheme.typography.bodyMedium
+            )
         } else {
             Column(
                 modifier = Modifier.padding(horizontal = 16.dp),
@@ -548,11 +581,11 @@ fun NearbyRestaurantCard(
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            // Use fallback image if logoUrl is missing
-            val logoUrl = restaurant.logoUrl ?: "v1758614777/nmdqnxmzs3fh4kmasbna.jpg"
+            // Use coverImageUrl as fallback if logoUrl is missing from API
+            val imageUrl = restaurant.logoUrl ?: restaurant.coverImageUrl ?: "jgm2_bacz_180706_rrfo50.jpg"
 
             AsyncImage(
-                model = getCloudinaryUrl(logoUrl, width = 200, height = 200),
+                model = getCloudinaryUrl(imageUrl, width = 200, height = 200),
                 contentDescription = restaurant.name,
                 modifier = Modifier
                     .size(80.dp)
@@ -596,7 +629,7 @@ fun NearbyRestaurantCard(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "%.1f".format(restaurant.rating),
+                        text = "%.1f".format(restaurant.ratingDouble),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Medium
                     )

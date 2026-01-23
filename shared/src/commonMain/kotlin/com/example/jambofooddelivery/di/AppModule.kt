@@ -1,5 +1,6 @@
 package com.example.jambofooddelivery.di
 import com.example.jambofooddelivery.cache.AppDatabase
+import com.example.jambofooddelivery.cache.Database
 import com.example.jambofooddelivery.cache.DatabaseDriverFactory
 import com.example.jambofooddelivery.domain.*
 import com.example.jambofooddelivery.preferences.AppSettings
@@ -21,9 +22,9 @@ expect val platformModule: Module
 
 val appModule = module {
     includes(platformModule)
+    
     // Database
-    single { AppDatabase(get()) }
-//    single { DatabaseDriverFactory(get()) }
+    single { Database(get()) }
 
 
     // Repositories

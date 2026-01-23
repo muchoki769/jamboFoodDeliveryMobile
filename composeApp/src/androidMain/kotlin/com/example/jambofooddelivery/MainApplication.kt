@@ -3,6 +3,9 @@ package com.example.jambofooddelivery
 import android.app.Application
 import android.os.Build
 import androidx.annotation.RequiresApi
+import coil3.ImageLoader
+import coil3.SingletonImageLoader
+import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import com.example.jambofooddelivery.di.initKoin
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
@@ -17,9 +20,16 @@ class MainApplication : Application() {
             androidContext(this@MainApplication)
             modules(
                 androidModule,
-
             )
         }
 
+        // Setup Coil 3 Singleton ImageLoader
+        SingletonImageLoader.setSafe { context ->
+            ImageLoader.Builder(context)
+                .components {
+                    add(OkHttpNetworkFetcherFactory())
+                }
+                .build()
+        }
     }
 }

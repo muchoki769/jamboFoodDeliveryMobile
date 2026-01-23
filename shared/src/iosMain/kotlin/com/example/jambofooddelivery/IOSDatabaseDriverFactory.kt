@@ -8,10 +8,20 @@ import com.example.jambofooddelivery.cache.AppDatabase
 
 import com.example.jambofooddelivery.cache.DatabaseDriverFactory
 
-expect class IOSDatabaseDriverFactory : DatabaseDriverFactory {
-    override fun createDriver(): SqlDriver
-}
+//expect class IOSDatabaseDriverFactory : DatabaseDriverFactory {
+//    override fun createDriver(): SqlDriver
+//}
 
+
+
+
+
+
+class IOSDatabaseDriverFactory : DatabaseDriverFactory {
+    override fun createDriver(): SqlDriver {
+        return NativeSqliteDriver(AppDatabase.Schema, "jambofood.db")
+    }
+}
 
 
 
