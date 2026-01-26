@@ -1,7 +1,12 @@
 package com.example.jambofooddelivery.ui.ViewModels
 
 import com.example.jambofooddelivery.models.Restaurant
+import com.example.jambofooddelivery.repositories.CartRepository
 import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
+import com.example.jambofooddelivery.models.MenuItem
+import com.example.jambofooddelivery.models.CartItem
+import kotlinx.coroutines.flow.collectLatest
 
 data class CartState(
     val isLoading: Boolean = false,
@@ -21,8 +26,22 @@ sealed class CartEvent {
 }
 
 class CartViewModel : BaseViewModel<CartState, CartEvent>(CartState()), KoinComponent {
+    private val cartRepository: CartRepository by inject()
+
+    init {
+        observeCart()
+    }
+
+    private fun observeCart() {
+        launch {
+            cartRepository.getCartItems().collectLatest { items ->
+                setState { it.copy(cartItems = items) }
+                calculateTotals()
+            }
+        }
+    }
+
     fun loadCart(restaurant: Restaurant?) {
-        // In a real app, you'd load from local database
         setState {
             it.copy(
                 restaurant = restaurant,
@@ -33,44 +52,25 @@ class CartViewModel : BaseViewModel<CartState, CartEvent>(CartState()), KoinComp
     }
 
     fun updateItemQuantity(itemId: String, newQuantity: Int) {
-        if (newQuantity <= 0) {
-            removeItem(itemId)
-            return
-        }
-        val currentItems = state.value.cartItems.toMutableList()
-        val itemIndex = currentItems.indexOfFirst { it.id == itemId }
-
-        if (itemIndex != -1) {
-            val item = currentItems[itemIndex]
-            currentItems[itemIndex] = item.copy(quantity = newQuantity)
-            setState { it.copy(cartItems = currentItems) }
-            calculateTotals()
+        launch {
+            cartRepository.updateQuantity(itemId, newQuantity)
         }
     }
 
 
     fun removeItem(itemId: String) {
-        val currentItems = state.value.cartItems.toMutableList()
-        val removedItem = currentItems.find { it.id == itemId }
-        currentItems.removeAll { it.id == itemId }
-
-        setState { it.copy(cartItems = currentItems) }
-        calculateTotals()
-
-        removedItem?.let {
-            emitEvent(CartEvent.ItemRemoved(it.menuItem.name))
+        launch {
+            val itemName = state.value.cartItems.find { it.id == itemId }?.menuItem?.name
+            cartRepository.removeItem(itemId)
+            itemName?.let {
+                emitEvent(CartEvent.ItemRemoved(it))
+            }
         }
     }
 
     fun clearCart() {
-        setState {
-            it.copy(
-                cartItems = emptyList(),
-                totalAmount = 0.0,
-                deliveryFee = 0.0,
-                taxAmount = 0.0,
-                finalAmount = 0.0
-            )
+        launch {
+            cartRepository.clearCart()
         }
     }
 
@@ -101,4 +101,3 @@ class CartViewModel : BaseViewModel<CartState, CartEvent>(CartState()), KoinComp
         }
     }
 }
-

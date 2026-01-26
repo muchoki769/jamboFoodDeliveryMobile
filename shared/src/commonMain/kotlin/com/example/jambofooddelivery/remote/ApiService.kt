@@ -11,14 +11,19 @@ import com.example.jambofooddelivery.models.PaymentMethod
 import com.example.jambofooddelivery.models.PaymentResponse
 import com.example.jambofooddelivery.models.Restaurant
 import com.example.jambofooddelivery.models.User
+import com.example.jambofooddelivery.models.MenuItem
+import com.example.jambofooddelivery.models.MenuCategory
+import io.github.aakira.napier.Napier
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.request.*
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.*
 
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
+import kotlinx.serialization.json.Json
 
 interface ApiService {
     suspend fun login(request: LoginRequest): ApiResponse<AuthResponse>
@@ -43,9 +48,16 @@ interface ApiService {
     suspend fun markMessagesAsRead(roomId: String): ApiResponse<Unit>
     suspend fun searchRestaurants(query: String, location: Location): ApiResponse<List<Restaurant>>
     suspend fun getNearbyRestaurants(location: Location, radius: Int): ApiResponse<List<Restaurant>>
+    
+    // Menu specific routes based on backend
+    suspend fun getRestaurantCategories(restaurantId: String): ApiResponse<List<MenuCategory>>
+    suspend fun getCategoryItems(categoryId: String): ApiResponse<List<MenuItem>>
+    suspend fun getPopularItems(restaurantId: String): ApiResponse<List<MenuItem>>
 }
 
 class ApiServiceImpl(private val client: HttpClient) : ApiService {
+
+    private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
     override suspend fun login(request: LoginRequest): ApiResponse<AuthResponse> {
         return try {
@@ -84,27 +96,27 @@ class ApiServiceImpl(private val client: HttpClient) : ApiService {
     }
 
     override suspend fun getRestaurants(location: Location): ApiResponse<List<Restaurant>> {
-         println("DEBUG: getRestaurants called with location: $location")
          return try {
             val response: ApiResponse<List<Restaurant>> = client.get("restaurants") {
                 parameter("lat", location.latitude)
                 parameter("lng", location.longitude)
                 parameter("radius", 500000) //within 5km
             }.body()
-            println("DEBUG: getRestaurants response success: ${response.success}, count: ${response.data?.size}")
             response
         } catch (e: Exception) {
-            println("DEBUG: getRestaurants error: ${e.message}")
             ApiResponse.Error(e.message ?: "Failed to fetch restaurants")
         }
     }
 
     override suspend fun getRestaurantMenu(restaurantId: String): ApiResponse<Restaurant> {
         return try {
-            val response: ApiResponse<Restaurant> = client.get("restaurants/$restaurantId").body()
+            val rawResponse = client.get("restaurants/$restaurantId").bodyAsText()
+            println("DEBUG_RESTAURANT_RESPONSE: $rawResponse")
+            val response: ApiResponse<Restaurant> = json.decodeFromString(rawResponse)
             response
         } catch (e: Exception) {
-            ApiResponse.Error(e.message ?: "Failed to fetch menu")
+            println("DEBUG_RESTAURANT_ERROR: ${e.message}")
+            ApiResponse.Error(e.message ?: "Failed to fetch restaurant")
         }
     }
 
@@ -229,30 +241,24 @@ class ApiServiceImpl(private val client: HttpClient) : ApiService {
     }
 
     override suspend fun geocodeAddress(address: String): ApiResponse<Location> {
-        println("DEBUG: geocodeAddress called with address: $address")
         return try {
             val response: ApiResponse<Location> = client.get("location/geocode") {
                 parameter("address", address)
             }.body()
-            println("DEBUG: geocodeAddress response: $response")
             response
         } catch (e: Exception) {
-            println("DEBUG: geocodeAddress error: ${e.message}")
              ApiResponse.Error(e.message ?: "Geocoding failed")
         }
     }
 
     override suspend fun reverseGeocode(location: Location): ApiResponse<String> {
-        println("DEBUG: reverseGeocode called with location: $location")
         return try {
             val response: ApiResponse<String> = client.get("location/reverse-geocode") {
                 parameter("lat", location.latitude)
                 parameter("lng", location.longitude)
             }.body()
-            println("DEBUG: reverseGeocode response: $response")
             response
         } catch (e: Exception) {
-            println("DEBUG: reverseGeocode error: ${e.message}")
             ApiResponse.Error(e.message ?: "Reverse geocoding failed")
         }
     }
@@ -301,6 +307,41 @@ class ApiServiceImpl(private val client: HttpClient) : ApiService {
             response
         } catch (e: Exception) {
             ApiResponse.Error(e.message ?: "Failed to fetch nearby restaurants")
+        }
+    }
+
+    override suspend fun getRestaurantCategories(restaurantId: String): ApiResponse<List<MenuCategory>> {
+        return try {
+            // Updated to the route provided by the user
+            val rawResponse = client.get("menu/restaurants/$restaurantId/categories").bodyAsText()
+            println("DEBUG_CATEGORIES_RESPONSE: $rawResponse")
+            val response: ApiResponse<List<MenuCategory>> = json.decodeFromString(rawResponse)
+            response
+        } catch (e: Exception) {
+            println("DEBUG_CATEGORIES_ERROR: ${e.message}")
+            println("JSON input: ${if (e is kotlinx.serialization.SerializationException) "" else ""}") // Helper for debugging
+            ApiResponse.Error(e.message ?: "Failed to fetch categories")
+        }
+    }
+
+    override suspend fun getCategoryItems(categoryId: String): ApiResponse<List<MenuItem>> {
+        return try {
+            val rawResponse = client.get("menu/categories/$categoryId/items").bodyAsText()
+            println("DEBUG_CATEGORY_ITEMS_RESPONSE: $rawResponse")
+            val response: ApiResponse<List<MenuItem>> = json.decodeFromString(rawResponse)
+            response
+        } catch (e: Exception) {
+            println("DEBUG_CATEGORY_ITEMS_ERROR: ${e.message}")
+            ApiResponse.Error(e.message ?: "Failed to fetch category items")
+        }
+    }
+
+    override suspend fun getPopularItems(restaurantId: String): ApiResponse<List<MenuItem>> {
+        return try {
+            val response: ApiResponse<List<MenuItem>> = client.get("menu/restaurants/$restaurantId/popular").body()
+            response
+        } catch (e: Exception) {
+            ApiResponse.Error(e.message ?: "Failed to fetch popular items")
         }
     }
 }

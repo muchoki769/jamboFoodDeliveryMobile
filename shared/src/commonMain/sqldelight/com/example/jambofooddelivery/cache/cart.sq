@@ -19,5 +19,8 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 getCartItems:
 SELECT * FROM cart_item ORDER BY added_at DESC;
 
+removeItem:
+DELETE FROM cart_item WHERE id = ?;
+
 clearCart:
 DELETE FROM cart_item;

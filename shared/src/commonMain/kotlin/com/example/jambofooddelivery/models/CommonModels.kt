@@ -89,14 +89,22 @@ data class Restaurant(
 @Serializable
 data class MenuCategory(
     val id: String,
+    @SerialName("restaurant_id")
+    val restaurantId: String? = null,
     val name: String,
     val description: String? = null,
+    @SerialName("sort_order")
+    val sortOrder: Int? = null,
+    @SerialName("is_active")
+    val isActive: Boolean = true,
     val items: List<MenuItem> = emptyList()
 )
 
 @Serializable
 data class MenuItem(
     val id: String,
+    @SerialName("category_id")
+    val categoryId: String? = null,
     val name: String,
     val description: String? = null,
     val price: Double,
@@ -110,7 +118,20 @@ data class MenuItem(
     @SerialName("is_available")
     val isAvailable: Boolean = true,
     @SerialName("preparation_time")
-    val preparationTime: Int? = null
+    val preparationTime: Int? = null,
+    @SerialName("sort_order")
+    val sortOrder: Int? = null
+)
+
+@Serializable
+data class CartItem(
+    val id: String,
+    val menuItem: MenuItem,
+    val quantity: Int,
+    @SerialName("special_instructions")
+    val specialInstructions: String? = null,
+    @SerialName("added_at")
+    val addedAt: Long
 )
 
 

@@ -4,6 +4,8 @@ import com.example.jambofooddelivery.cache.Database
 import com.example.jambofooddelivery.models.Address
 import com.example.jambofooddelivery.models.Location
 import com.example.jambofooddelivery.models.Restaurant
+import com.example.jambofooddelivery.models.MenuItem
+import com.example.jambofooddelivery.models.MenuCategory
 import com.example.jambofooddelivery.remote.ApiService
 import com.example.jambofooddelivery.utils.Result
 import io.github.aakira.napier.Napier
@@ -14,6 +16,8 @@ interface RestaurantRepository {
     suspend fun searchRestaurants(query: String, location: Location): Result<List<Restaurant>>
     suspend fun getRestaurantMenu(restaurantId: String): Result<Restaurant>
     suspend fun getNearbyRestaurants(location: Location, radius: Int = 5000): Result<List<Restaurant>>
+    suspend fun getCategoryItems(categoryId: String): Result<List<MenuItem>>
+    suspend fun getRestaurantCategories(restaurantId: String): Result<List<MenuCategory>>
 }
 
 class RestaurantRepositoryImpl(
@@ -120,6 +124,32 @@ class RestaurantRepositoryImpl(
             }
         } catch (e: Exception) {
             Result.Error("Nearby fetch failed: ${e.message}")
+        }
+    }
+
+    override suspend fun getRestaurantCategories(restaurantId: String): Result<List<MenuCategory>> {
+        return try {
+            val response = apiService.getRestaurantCategories(restaurantId)
+            if (response.success && response.data != null) {
+                Result.Success(response.data)
+            } else {
+                Result.Error(response.error ?: "Failed to load categories")
+            }
+        } catch (e: Exception) {
+            Result.Error("Categories fetch failed: ${e.message}")
+        }
+    }
+
+    override suspend fun getCategoryItems(categoryId: String): Result<List<MenuItem>> {
+        return try {
+            val response = apiService.getCategoryItems(categoryId)
+            if (response.success && response.data != null) {
+                Result.Success(response.data)
+            } else {
+                Result.Error(response.error ?: "Failed to load items")
+            }
+        } catch (e: Exception) {
+            Result.Error("Items fetch failed: ${e.message}")
         }
     }
 

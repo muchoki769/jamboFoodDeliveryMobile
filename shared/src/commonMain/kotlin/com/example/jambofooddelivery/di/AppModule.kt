@@ -1,16 +1,11 @@
 package com.example.jambofooddelivery.di
-import com.example.jambofooddelivery.cache.AppDatabase
 import com.example.jambofooddelivery.cache.Database
-import com.example.jambofooddelivery.cache.DatabaseDriverFactory
 import com.example.jambofooddelivery.domain.*
 import com.example.jambofooddelivery.preferences.AppSettings
-import com.example.jambofooddelivery.remote.ApiService
-import com.example.jambofooddelivery.remote.ApiServiceImpl
 import com.example.jambofooddelivery.remote.SocketService
 import com.example.jambofooddelivery.repositories.*
 import com.example.jambofooddelivery.utils.AnalyticsService
 import com.example.jambofooddelivery.utils.CloudinaryUploader
-import com.russhwolf.settings.Settings
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.bind
 import org.koin.core.module.dsl.singleOf
@@ -22,6 +17,7 @@ expect val platformModule: Module
 
 val appModule = module {
     includes(platformModule)
+    includes(networkModule)
     
     // Database
     single { Database(get()) }
@@ -35,7 +31,7 @@ val appModule = module {
     singleOf(::PaymentRepositoryImpl) { bind<PaymentRepository>() }
     singleOf(::ChatRepositoryImpl) { bind<ChatRepository>() }
     singleOf(::LocationRepositoryImpl) { bind<LocationRepository>() }
-
+    singleOf(::CartRepositoryImpl) { bind<CartRepository>() }
     // Use Cases
     singleOf(::LoginUseCase)
     singleOf(::RegisterUseCase)
@@ -49,7 +45,6 @@ val appModule = module {
     // remote
     singleOf(::SocketService)
     singleOf(::AnalyticsService)
-    single<ApiService> { ApiServiceImpl(get()) }
 
 
     // Settings

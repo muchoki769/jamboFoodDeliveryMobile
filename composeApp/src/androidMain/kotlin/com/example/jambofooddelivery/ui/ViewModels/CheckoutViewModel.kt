@@ -5,11 +5,15 @@ import com.example.jambofooddelivery.domain.ProcessPaymentUseCase
 import com.example.jambofooddelivery.models.Address
 import com.example.jambofooddelivery.models.Order
 import com.example.jambofooddelivery.models.PaymentMethod
+import com.example.jambofooddelivery.models.CartItem
+import com.example.jambofooddelivery.preferences.AppSettings
 import com.example.jambofooddelivery.remote.OrderItemRequest
+import com.example.jambofooddelivery.repositories.CartRepository
 import com.example.jambofooddelivery.repositories.LocationRepository
 import com.example.jambofooddelivery.repositories.PaymentRepository
 import com.example.jambofooddelivery.utils.Result
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
@@ -42,10 +46,51 @@ class CheckoutViewModel : BaseViewModel<CheckoutState, CheckoutEvent>(CheckoutSt
     private val processPaymentUseCase: ProcessPaymentUseCase by inject()
     private val locationRepository: LocationRepository by inject()
     private val paymentRepository: PaymentRepository by inject()
+    private val cartRepository: CartRepository by inject()
+    private val appSettings: AppSettings by inject()
 
     init {
         loadPaymentMethods()
+        loadCachedData()
+        observeCart()
+    }
+
+    private fun loadCachedData() {
+        // Load cached location from AppSettings
+        val cachedLocation = appSettings.getCachedLocation()
+        cachedLocation?.let { loc ->
+            val address = Address(
+                street = loc.address ?: appSettings.getCachedAddress(),
+                city = "Nairobi", // Fallback
+                state = "Nairobi",
+                postalCode = "00100",
+                country = "Kenya",
+                latitude = loc.latitude,
+                longitude = loc.longitude
+            )
+            setState { it.copy(deliveryAddress = address) }
+        }
+
+        // Also try to get fresh location if possible
         loadUserAddress()
+    }
+
+    private fun observeCart() {
+        launch {
+            cartRepository.getCartItems().collectLatest { items ->
+                val subtotal = items.sumOf { it.menuItem.price * it.quantity }
+                val tax = subtotal * 0.1
+                // Assuming a fixed delivery fee or getting it from somewhere
+                val deliveryFee = 150.0 
+                
+                setState {
+                    it.copy(
+                        cartItems = items,
+                        totalAmount = subtotal + tax + deliveryFee
+                    )
+                }
+            }
+        }
     }
 
 
@@ -80,8 +125,12 @@ class CheckoutViewModel : BaseViewModel<CheckoutState, CheckoutEvent>(CheckoutSt
                 )
             }
 
+            // Using the first item's restaurant id. Ideally this should be stored in cart
+            // For now, we'll try to get it from the cart query or assume one restaurant per order
+            val restaurantId = "rest_123" // This needs to be dynamic
+
             when (val result = createOrderUseCase(
-                restaurantId = cartItems.first().menuItem.id, // This should be the restaurant ID
+                restaurantId = restaurantId, 
                 items = orderItems,
                 deliveryAddress = address,
                 paymentMethod = paymentMethod,
@@ -177,14 +226,17 @@ class CheckoutViewModel : BaseViewModel<CheckoutState, CheckoutEvent>(CheckoutSt
                         val addressString = result.data
                         val address = Address(
                             street = addressString,
-                            city = "Nairobi", // Fallback or parse from addressString
-                            state = "Nairobi",
-                            postalCode = "00100",
-                            country = "Kenya",
+                            city = "", // Fallback or parse from addressString
+                            state = "",
+                            postalCode = "",
+                            country = "",
                             latitude = it.latitude,
                             longitude = it.longitude
                         )
                         setState { it.copy(deliveryAddress = address) }
+                        
+                        // Save this fresh location back to cache
+                        appSettings.saveCachedLocation(it, addressString)
                     }
                     is Result.Error -> {
                         // Use default address or let user enter manually

@@ -73,7 +73,9 @@ fun RestaurantDetailScreen(
         bottomBar = {
             if (state.totalCartItems > 0) {
                 Surface(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding(),
                     shadowElevation = 8.dp,
                     color = MaterialTheme.colorScheme.surface
                 ) {
@@ -140,8 +142,8 @@ fun RestaurantDetailScreen(
                         ) {
                             items(categories, key = { it.id }) { category ->
                                 FilterChip(
-                                    selected = state.selectedCategory == category.name,
-                                    onClick = { viewModel.selectCategory(category.name) },
+                                    selected = state.selectedCategoryId == category.id,
+                                    onClick = { viewModel.selectCategory(category.id, category.name) },
                                     label = { Text(category.name) }
                                 )
                             }
@@ -149,11 +151,31 @@ fun RestaurantDetailScreen(
                     }
                 }
 
-                // Menu Items for Selected Category
-                val selectedCategory = state.restaurant?.categories?.find { it.name == state.selectedCategory }
-                val menuItems = selectedCategory?.items ?: emptyList()
+                // Selected Category Info
+                if (!state.selectedCategoryDescription.isNullOrBlank()) {
+                    item {
+                        Text(
+                            text = state.selectedCategoryDescription ?: "",
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
+                }
 
-                if (menuItems.isEmpty()) {
+                // Menu Items for Selected Category
+                val menuItems = state.categoryItems[state.selectedCategoryId] ?: emptyList()
+
+                if (state.isItemsLoading) {
+                    item {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().padding(32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                        }
+                    }
+                } else if (menuItems.isEmpty()) {
                     item {
                         Box(
                             modifier = Modifier.fillMaxWidth().padding(32.dp),
@@ -175,7 +197,7 @@ fun RestaurantDetailScreen(
                 }
                 
                 // Extra spacer for bottom bar
-                item { Spacer(modifier = Modifier.height(80.dp)) }
+                item { Spacer(modifier = Modifier.height(16.dp)) }
             }
         }
     }
