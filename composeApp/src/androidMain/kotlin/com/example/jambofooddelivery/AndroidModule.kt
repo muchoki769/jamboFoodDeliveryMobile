@@ -12,9 +12,11 @@ import com.example.jambofooddelivery.ui.ViewModels.CartViewModel
 import com.example.jambofooddelivery.ui.ViewModels.ChatViewModel
 import com.example.jambofooddelivery.ui.ViewModels.CheckoutViewModel
 import com.example.jambofooddelivery.ui.ViewModels.HomeViewModel
+import com.example.jambofooddelivery.ui.ViewModels.NotificationViewModel
 import com.example.jambofooddelivery.ui.ViewModels.OrderTrackingViewModel
 import com.example.jambofooddelivery.ui.ViewModels.ProfileViewModel
 import com.example.jambofooddelivery.ui.ViewModels.RestaurantViewModel
+import com.example.jambofooddelivery.utils.NotificationHelper
 import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.module
 
@@ -42,6 +44,9 @@ val androidModule = module {
     factory { HomeViewModel() }
     factory { OrderTrackingViewModel() }
     factory { ProfileViewModel() }
+    factory { NotificationViewModel() }
+
+
 
 //    viewModel { RestaurantViewModel() }
 //    viewModel { AuthViewModel() }
@@ -55,6 +60,9 @@ val androidModule = module {
 
 
     single<DatabaseDriverFactory> { AndroidDatabaseDriverFactory(get()) }
+    
+    // Notification Helper
+    single { NotificationHelper(get()) }
 
 }
 

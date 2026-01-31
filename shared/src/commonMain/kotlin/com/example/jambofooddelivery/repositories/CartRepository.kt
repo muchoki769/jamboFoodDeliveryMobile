@@ -29,6 +29,7 @@ class CartRepositoryImpl(private val database: Database) : CartRepository {
         val items = database.cartQueries.getCartItems().executeAsList().map {
             CartItem(
                 id = it.id,
+                restaurantId = it.restaurant_id,
                 menuItem = MenuItem(
                     id = it.menu_item_id,
                     name = it.name,

@@ -27,6 +27,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.jambofooddelivery.models.Address
 import com.example.jambofooddelivery.models.PaymentMethod
+import com.example.jambofooddelivery.ui.ViewModels.CheckoutEvent
 import com.example.jambofooddelivery.ui.ViewModels.CheckoutViewModel
 import org.koin.androidx.compose.koinViewModel
 
@@ -38,6 +39,37 @@ fun CheckoutScreen(
 ) {
     val viewModel: CheckoutViewModel = koinViewModel()
     val state by viewModel.state.collectAsState()
+    val events by viewModel.events.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(events) {
+        when (val event = events) {
+            is CheckoutEvent.NavigateToOrderTracking -> {
+                state.order?.id?.let { onOrderSuccess(it) }
+                viewModel.clearEvent()
+            }
+            is CheckoutEvent.OrderCreated -> {
+                if (state.selectedPaymentMethod == PaymentMethod.CASH) {
+                    onOrderSuccess(event.orderId)
+                    viewModel.clearEvent()
+                }
+            }
+            is CheckoutEvent.ShowError -> {
+                snackbarHostState.showSnackbar(event.message)
+                viewModel.clearEvent()
+            }
+            is CheckoutEvent.PaymentIntentCreated -> {
+                // Simulate navigation after stripe intent is created (since we are using notifications for success)
+                state.order?.id?.let { onOrderSuccess(it) }
+                viewModel.clearEvent()
+            }
+            is CheckoutEvent.MpesaPaymentInitiated -> {
+                snackbarHostState.showSnackbar("M-Pesa payment initiated. Please check your phone.")
+                viewModel.clearEvent()
+            }
+            else -> {}
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -50,6 +82,7 @@ fun CheckoutScreen(
                 }
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             Surface(
                 shadowElevation = 8.dp,
@@ -63,9 +96,9 @@ fun CheckoutScreen(
                         .padding(16.dp),
                     shape = MaterialTheme.shapes.medium,
                     contentPadding = PaddingValues(16.dp),
-                    enabled = !state.isLoading && state.selectedPaymentMethod != null && state.deliveryAddress != null
+                    enabled = !state.isLoading && !state.isProcessingPayment && state.selectedPaymentMethod != null && state.deliveryAddress != null
                 ) {
-                    if (state.isLoading) {
+                    if (state.isLoading || state.isProcessingPayment) {
                         CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
                     } else {
                         Text("Place Order", style = MaterialTheme.typography.titleMedium)
@@ -74,63 +107,72 @@ fun CheckoutScreen(
             }
         }
     ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
-        ) {
-            // Delivery Address Section
-            item {
-                SectionHeader("Delivery Address")
-                DeliveryAddressCard(
-                    address = state.deliveryAddress,
-                    onClick = { /* Implement address selection/edit */ }
-                )
+        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(24.dp)
+            ) {
+                // Delivery Address Section
+                item {
+                    SectionHeader("Delivery Address")
+                    DeliveryAddressCard(
+                        address = state.deliveryAddress,
+                        onClick = { /* Implement address selection/edit */ }
+                    )
+                }
+
+                // Payment Method Section
+                item {
+                    SectionHeader("Payment Method")
+                    PaymentMethodSection(
+                        methods = state.paymentMethods,
+                        selectedMethod = state.selectedPaymentMethod,
+                        onMethodSelected = { viewModel.setPaymentMethod(it) },
+                        mpesaPhone = state.mpesaPhone,
+                        onMpesaPhoneChange = { viewModel.setMpesaPhone(it) }
+                    )
+                }
+
+                // Special Instructions
+                item {
+                    SectionHeader("Special Instructions")
+                    OutlinedTextField(
+                        value = state.specialInstructions,
+                        onValueChange = { viewModel.setSpecialInstructions(it) },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text("E.g. No onions, gate code is 1234...") },
+                        minLines = 3,
+                        shape = MaterialTheme.shapes.medium
+                    )
+                }
+
+                // Order Summary Mini
+                item {
+                    SectionHeader("Order Summary")
+                    OrderSummaryCard(
+                        total = state.totalAmount
+                    )
+                }
+
+                item { Spacer(modifier = Modifier.height(16.dp)) }
             }
-
-            // Payment Method Section
-            item {
-                SectionHeader("Payment Method")
-                PaymentMethodSection(
-                    methods = state.paymentMethods,
-                    selectedMethod = state.selectedPaymentMethod,
-                    onMethodSelected = { viewModel.setPaymentMethod(it) },
-                    mpesaPhone = state.mpesaPhone,
-                    onMpesaPhoneChange = { viewModel.setMpesaPhone(it) }
-                )
-            }
-
-            // Special Instructions
-            item {
-                SectionHeader("Special Instructions")
-                OutlinedTextField(
-                    value = state.specialInstructions,
-                    onValueChange = { viewModel.setSpecialInstructions(it) },
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("E.g. No onions, gate code is 1234...") },
-                    minLines = 3,
-                    shape = MaterialTheme.shapes.medium
-                )
-            }
-
-            // Order Summary Mini
-            item {
-                SectionHeader("Order Summary")
-                OrderSummaryCard(
-                    total = state.totalAmount // You might want to pass more details here
-                )
-            }
-
-            item { Spacer(modifier = Modifier.height(16.dp)) }
-        }
-
-        // Show error snackbar if any
-        state.error?.let { error ->
-            LaunchedEffect(error) {
-                // You can show a snackbar here
-                viewModel.clearError()
+            
+            if (state.isProcessingPayment) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = Color.Black.copy(alpha = 0.3f)
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator()
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("Processing Payment...", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                }
             }
         }
     }
@@ -233,7 +275,6 @@ fun PaymentMethodSection(
                     }
                 }
                 
-                // Show M-Pesa phone input if selected
                 if (method == PaymentMethod.MPESA && isSelected) {
                     AnimatedVisibility(visible = true) {
                         OutlinedTextField(
@@ -243,7 +284,7 @@ fun PaymentMethodSection(
                                 .fillMaxWidth()
                                 .padding(top = 8.dp, start = 8.dp, end = 8.dp),
                             label = { Text("M-Pesa Phone Number") },
-                            placeholder = { Text("0712345678") },
+                            placeholder = { Text("254712345678") },
                             leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                             singleLine = true,

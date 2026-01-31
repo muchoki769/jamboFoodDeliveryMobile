@@ -8,6 +8,7 @@ import androidx.compose.material.icons.outlined.Icecream
 import androidx.compose.material.icons.outlined.LocalDrink
 import androidx.compose.material.icons.outlined.LocalPizza
 import com.example.jambofooddelivery.domain.GetRestaurantsUseCase
+import com.example.jambofooddelivery.domain.SearchRestaurantsUseCase
 import com.example.jambofooddelivery.domain.UpdateLocationUseCase
 import com.example.jambofooddelivery.models.Location
 import com.example.jambofooddelivery.models.Restaurant
@@ -22,6 +23,7 @@ import org.koin.core.component.inject
 
 data class HomeState(
     val isLoading: Boolean = false,
+    val isSearching: Boolean = false,
     val featuredRestaurants: List<Restaurant> = emptyList(),
     val nearbyRestaurants: List<Restaurant> = emptyList(),
     val categories: List<Category> = emptyList(),
@@ -41,6 +43,7 @@ sealed class HomeEvent {
 class HomeViewModel : BaseViewModel<HomeState, HomeEvent>(HomeState()), KoinComponent {
 
     private val getRestaurantsUseCase: GetRestaurantsUseCase by inject()
+    private val searchRestaurantsUseCase: SearchRestaurantsUseCase by inject()
     private val locationRepository: LocationRepository by inject()
     private val updateLocationUseCase: UpdateLocationUseCase by inject()
     private val appSettings: AppSettings by inject()
@@ -93,11 +96,32 @@ class HomeViewModel : BaseViewModel<HomeState, HomeEvent>(HomeState()), KoinComp
     fun searchRestaurants(query: String) {
         setState { it.copy(searchQuery = query) }
 
-        if (query.length >= 3) {
+        if (query.isBlank()) {
+            loadRestaurants()
+            return
+        }
+
+        if (query.length >= 2) {
             launch {
-                val location = state.value.userLocation
-                if (location != null) {
-                    // Implement search logic here
+                val location = state.value.userLocation ?: return@launch
+                setState { it.copy(isSearching = true) }
+                
+                when (val result = searchRestaurantsUseCase(query, location)) {
+                    is Result.Success -> {
+                        setState {
+                            it.copy(
+                                isSearching = false,
+                                nearbyRestaurants = result.data,
+                                // Optionally filter featured as well or keep them
+                                featuredRestaurants = result.data.filter { r -> r.ratingDouble >= 4.0 }
+                            )
+                        }
+                    }
+                    is Result.Error -> {
+                        setState { it.copy(isSearching = false) }
+                        // Don't show error for every keystroke unless necessary
+                    }
+                    else -> setState { it.copy(isSearching = false) }
                 }
             }
         }
@@ -105,6 +129,7 @@ class HomeViewModel : BaseViewModel<HomeState, HomeEvent>(HomeState()), KoinComp
 
     fun filterByCategory(category: Category) {
         setState { it.copy(selectedCategory = category.name) }
+        searchRestaurants(category.name)
     }
 
     fun onRestaurantClick(restaurantId: String) {

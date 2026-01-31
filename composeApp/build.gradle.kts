@@ -44,6 +44,7 @@ kotlin {
             implementation(libs.koin.core)
             implementation(libs.koin.androidx.compose)
             implementation(libs.androidx.navigation.compose)
+            implementation(libs.kotlinx.datetime)
             
             // Coil 3 for Image Loading
             implementation("io.coil-kt.coil3:coil-compose:3.0.4")
@@ -64,6 +65,11 @@ android {
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
         versionName = "1.0"
+        
+        // Performance optimization
+        vectorDrawables {
+            useSupportLibrary = true
+        }
     }
     packaging {
         resources {
@@ -72,6 +78,11 @@ android {
     }
     buildTypes {
         getByName("release") {
+            isMinifyEnabled = true // Enabled ProGuard/R8
+            isShrinkResources = true // Enabled Resource Shrinking
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+        getByName("debug") {
             isMinifyEnabled = false
         }
     }

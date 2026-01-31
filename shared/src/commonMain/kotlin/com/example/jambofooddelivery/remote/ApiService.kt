@@ -13,11 +13,11 @@ import com.example.jambofooddelivery.models.Restaurant
 import com.example.jambofooddelivery.models.User
 import com.example.jambofooddelivery.models.MenuItem
 import com.example.jambofooddelivery.models.MenuCategory
-import io.github.aakira.napier.Napier
+import com.example.jambofooddelivery.models.Notification
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.request.*
-import io.ktor.client.statement.bodyAsText
+import io.ktor.client.statement.*
 import io.ktor.http.*
 
 
@@ -36,6 +36,7 @@ interface ApiService {
     suspend fun updateOrderStatus(orderId: String, status: OrderStatus): ApiResponse<Order>
     suspend fun createPaymentIntent(request: PaymentIntentRequest): ApiResponse<PaymentIntentResponse>
     suspend fun initiateMpesaPayment(request: MpesaPaymentRequest): ApiResponse<MpesaPaymentResponse>
+    suspend fun getMpesaStatus(checkoutRequestId: String): ApiResponse<MpesaStatusResponse>
     suspend fun getChatRooms(userId: String): ApiResponse<List<ChatRoom>>
     suspend fun getChatMessages(roomId: String): ApiResponse<List<ChatMessage>>
     suspend fun sendMessage(request: SendMessageRequest): ApiResponse<ChatMessage>
@@ -53,302 +54,223 @@ interface ApiService {
     suspend fun getRestaurantCategories(restaurantId: String): ApiResponse<List<MenuCategory>>
     suspend fun getCategoryItems(categoryId: String): ApiResponse<List<MenuItem>>
     suspend fun getPopularItems(restaurantId: String): ApiResponse<List<MenuItem>>
+
+    // Notification routes
+    suspend fun getNotifications(userId: String): ApiResponse<List<Notification>>
+    suspend fun markNotificationAsRead(notificationId: String): ApiResponse<Unit>
+    suspend fun registerFcmToken(userId: String, token: String): ApiResponse<Unit>
 }
 
 class ApiServiceImpl(private val client: HttpClient) : ApiService {
 
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
-    override suspend fun login(request: LoginRequest): ApiResponse<AuthResponse> {
+    private suspend inline fun <reified T> safeRequest(block: () -> HttpResponse): ApiResponse<T> {
         return try {
-            val response: ApiResponse<AuthResponse> = client.post("auth/login") {
-                contentType(ContentType.Application.Json)
-                setBody(request)
-            }.body()
-            response
+            val response = block()
+            val text = response.bodyAsText()
+            if (response.status.isSuccess()) {
+                // If the backend returns the raw data directly instead of wrapping it in ApiResponse
+                try {
+                    val data = json.decodeFromString<T>(text)
+                    ApiResponse.Success(data)
+                } catch (e: Exception) {
+                    // Try decoding as ApiResponse if direct decoding fails
+                    val apiResponse = json.decodeFromString<ApiResponse<T>>(text)
+                    if (apiResponse.success) {
+                        apiResponse
+                    } else {
+                        ApiResponse.Error(apiResponse.error ?: apiResponse.message ?: "Unknown error")
+                    }
+                }
+            } else {
+                try {
+                    val apiResponse = json.decodeFromString<ApiResponse<T>>(text)
+                    ApiResponse.Error(apiResponse.error ?: apiResponse.message ?: "Server error: ${response.status.value}")
+                } catch (e: Exception) {
+                    ApiResponse.Error("Server error: ${response.status.value}")
+                }
+            }
         } catch (e: Exception) {
-            ApiResponse.Error(e.message ?: "Login failed")
+            ApiResponse.Error(e.message ?: "Network error")
         }
     }
 
-    override suspend fun createOrder(request: CreateOrderRequest): ApiResponse<OrderResponse> {
-        return try {
-            val response: ApiResponse<OrderResponse> = client.post("orders") {
-                contentType(ContentType.Application.Json)
-                setBody(request)
-            }.body()
-            response
-        } catch (e: Exception) {
-            ApiResponse.Error(e.message ?: "Order creation failed")
+    override suspend fun login(request: LoginRequest): ApiResponse<AuthResponse> = safeRequest {
+        client.post("auth/login") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
         }
     }
 
-    override suspend fun register(request: RegisterRequest): ApiResponse<AuthResponse> {
-        return try {
-            val response: ApiResponse<AuthResponse> = client.post("auth/register") {
-                contentType(ContentType.Application.Json)
-                setBody(request)
-            }.body()
-            response
-        } catch (e: Exception) {
-            ApiResponse.Error(e.message ?: "Registration failed")
+    override suspend fun createOrder(request: CreateOrderRequest): ApiResponse<OrderResponse> = safeRequest {
+        client.post("orders") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
         }
     }
 
-    override suspend fun getRestaurants(location: Location): ApiResponse<List<Restaurant>> {
-         return try {
-            val response: ApiResponse<List<Restaurant>> = client.get("restaurants") {
-                parameter("lat", location.latitude)
-                parameter("lng", location.longitude)
-                parameter("radius", 500000) //within 5km
-            }.body()
-            response
-        } catch (e: Exception) {
-            ApiResponse.Error(e.message ?: "Failed to fetch restaurants")
+    override suspend fun register(request: RegisterRequest): ApiResponse<AuthResponse> = safeRequest {
+        client.post("auth/register") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
         }
     }
 
-    override suspend fun getRestaurantMenu(restaurantId: String): ApiResponse<Restaurant> {
-        return try {
-            val rawResponse = client.get("restaurants/$restaurantId").bodyAsText()
-            println("DEBUG_RESTAURANT_RESPONSE: $rawResponse")
-            val response: ApiResponse<Restaurant> = json.decodeFromString(rawResponse)
-            response
-        } catch (e: Exception) {
-            println("DEBUG_RESTAURANT_ERROR: ${e.message}")
-            ApiResponse.Error(e.message ?: "Failed to fetch restaurant")
+    override suspend fun getRestaurants(location: Location): ApiResponse<List<Restaurant>> = safeRequest {
+        client.get("restaurants") {
+            parameter("lat", location.latitude)
+            parameter("lng", location.longitude)
+            parameter("radius", 500000) //within 5km
         }
     }
 
-    override suspend fun getOrder(orderId: String): ApiResponse<Order> {
-         return try {
-            val response: ApiResponse<Order> = client.get("orders/$orderId").body()
-            response
-        } catch (e: Exception) {
-            ApiResponse.Error(e.message ?: "Failed to fetch order")
+    override suspend fun getRestaurantMenu(restaurantId: String): ApiResponse<Restaurant> = safeRequest {
+        client.get("restaurants/$restaurantId")
+    }
+
+    override suspend fun getOrder(orderId: String): ApiResponse<Order> = safeRequest {
+        client.get("orders/$orderId")
+    }
+
+    override suspend fun getUserOrders(userId: String): ApiResponse<List<Order>> = safeRequest {
+        client.get("orders/user")
+    }
+
+    override suspend fun updateOrderStatus(orderId: String, status: OrderStatus): ApiResponse<Order> = safeRequest {
+        client.put("orders/$orderId/status") {
+            contentType(ContentType.Application.Json)
+            setBody(mapOf("status" to status))
         }
     }
 
-    override suspend fun getUserOrders(userId: String): ApiResponse<List<Order>> {
-        return try {
-            val response: ApiResponse<List<Order>> = client.get("users/$userId/orders").body()
-            response
-        } catch (e: Exception) {
-            ApiResponse.Error(e.message ?: "Failed to fetch user orders")
+    override suspend fun createPaymentIntent(request: PaymentIntentRequest): ApiResponse<PaymentIntentResponse> = safeRequest {
+        client.post("payments/stripe/initiate") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
         }
     }
 
-    override suspend fun updateOrderStatus(orderId: String, status: OrderStatus): ApiResponse<Order> {
-         return try {
-            val response: ApiResponse<Order> = client.put("orders/$orderId/status") {
-                contentType(ContentType.Application.Json)
-                setBody(mapOf("status" to status))
-            }.body()
-            response
-        } catch (e: Exception) {
-            ApiResponse.Error(e.message ?: "Failed to update order status")
+    override suspend fun initiateMpesaPayment(request: MpesaPaymentRequest): ApiResponse<MpesaPaymentResponse> = safeRequest {
+        client.post("payments/mpesa/initiate") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
         }
     }
 
-    override suspend fun createPaymentIntent(request: PaymentIntentRequest): ApiResponse<PaymentIntentResponse> {
-        return try {
-            val response: ApiResponse<PaymentIntentResponse> = client.post("payments/intent") {
-                contentType(ContentType.Application.Json)
-                setBody(request)
-            }.body()
-            response
-        } catch (e: Exception) {
-            ApiResponse.Error(e.message ?: "Failed to create payment intent")
+    override suspend fun getMpesaStatus(checkoutRequestId: String): ApiResponse<MpesaStatusResponse> = safeRequest {
+        client.get("payments/mpesa/callback") {
+            parameter("checkoutRequestId", checkoutRequestId)
         }
     }
 
-    override suspend fun initiateMpesaPayment(request: MpesaPaymentRequest): ApiResponse<MpesaPaymentResponse> {
-         return try {
-            val response: ApiResponse<MpesaPaymentResponse> = client.post("payments/mpesa") {
-                contentType(ContentType.Application.Json)
-                setBody(request)
-            }.body()
-            response
-        } catch (e: Exception) {
-            ApiResponse.Error(e.message ?: "Failed to initiate M-Pesa payment")
+    override suspend fun getChatRooms(userId: String): ApiResponse<List<ChatRoom>> = safeRequest {
+        client.get("users/$userId/chats")
+    }
+
+    override suspend fun getChatMessages(roomId: String): ApiResponse<List<ChatMessage>> = safeRequest {
+        client.get("chats/$roomId/messages")
+    }
+
+    override suspend fun sendMessage(request: SendMessageRequest): ApiResponse<ChatMessage> = safeRequest {
+        client.post("chats/${request.roomId}/messages") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
         }
     }
 
-    override suspend fun getChatRooms(userId: String): ApiResponse<List<ChatRoom>> {
-        return try {
-            val response: ApiResponse<List<ChatRoom>> = client.get("users/$userId/chats").body()
-            response
-        } catch (e: Exception) {
-            ApiResponse.Error(e.message ?: "Failed to fetch chat rooms")
-        }
-    }
-
-    override suspend fun getChatMessages(roomId: String): ApiResponse<List<ChatMessage>> {
-        return try {
-            val response: ApiResponse<List<ChatMessage>> = client.get("chats/$roomId/messages").body()
-            response
-        } catch (e: Exception) {
-            ApiResponse.Error(e.message ?: "Failed to fetch chat messages")
-        }
-    }
-
-    override suspend fun sendMessage(request: SendMessageRequest): ApiResponse<ChatMessage> {
-        return try {
-            val response: ApiResponse<ChatMessage> = client.post("chats/${request.roomId}/messages") {
-                contentType(ContentType.Application.Json)
-                setBody(request)
-            }.body()
-            response
-        } catch (e: Exception) {
-            ApiResponse.Error(e.message ?: "Failed to send message")
-        }
-    }
-
-    override suspend fun updateLocation(userId: String, location: Location): ApiResponse<Unit> {
-        return try {
-             val response: ApiResponse<Unit> = client.put("users/$userId/location") {
-                contentType(ContentType.Application.Json)
-                setBody(location)
-            }.body()
-            response
-        } catch (e: Exception) {
-            ApiResponse.Error(e.message ?: "Failed to update location")
+    override suspend fun updateLocation(userId: String, location: Location): ApiResponse<Unit> = safeRequest {
+        client.put("users/$userId/location") {
+            contentType(ContentType.Application.Json)
+            setBody(location)
         }
     }
     
-    override suspend fun updateProfile(request: ProfileUpdate): ApiResponse<User> {
-        return try {
-            val response: ApiResponse<User> = client.put("users/profile") {
-                contentType(ContentType.Application.Json)
-                setBody(request)
-            }.body()
-            response
-        } catch (e: Exception) {
-            ApiResponse.Error(e.message ?: "Failed to update profile")
+    override suspend fun updateProfile(request: ProfileUpdate): ApiResponse<User> = safeRequest {
+        client.put("users/profile") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
         }
     }
 
-    override suspend fun updateUser(userId: String, user: User): ApiResponse<User> {
-        return try {
-            val response: ApiResponse<User> = client.put("users/$userId") {
-                contentType(ContentType.Application.Json)
-                setBody(user)
-            }.body()
-            response
-        } catch (e: Exception) {
-            ApiResponse.Error(e.message ?: "Failed to update user")
+    override suspend fun updateUser(userId: String, user: User): ApiResponse<User> = safeRequest {
+        client.put("users/$userId") {
+            contentType(ContentType.Application.Json)
+            setBody(user)
         }
     }
 
-    override suspend fun geocodeAddress(address: String): ApiResponse<Location> {
-        return try {
-            val response: ApiResponse<Location> = client.get("location/geocode") {
-                parameter("address", address)
-            }.body()
-            response
-        } catch (e: Exception) {
-             ApiResponse.Error(e.message ?: "Geocoding failed")
+    override suspend fun geocodeAddress(address: String): ApiResponse<Location> = safeRequest {
+        client.get("location/geocode") {
+            parameter("address", address)
         }
     }
 
-    override suspend fun reverseGeocode(location: Location): ApiResponse<String> {
-        return try {
-            val response: ApiResponse<String> = client.get("location/reverse-geocode") {
-                parameter("lat", location.latitude)
-                parameter("lng", location.longitude)
-            }.body()
-            response
-        } catch (e: Exception) {
-            ApiResponse.Error(e.message ?: "Reverse geocoding failed")
+    override suspend fun reverseGeocode(location: Location): ApiResponse<String> = safeRequest {
+        client.get("location/reverse-geocode") {
+            parameter("lat", location.latitude)
+            parameter("lng", location.longitude)
         }
     }
     
-    override suspend fun getOrCreateSupportRoom(userId: String, orderId: String?): ApiResponse<ChatRoom> {
-         return try {
-            val response: ApiResponse<ChatRoom> = client.post("chats/support") {
-                contentType(ContentType.Application.Json)
-                setBody(mapOf("userId" to userId, "orderId" to orderId))
-            }.body()
-            response
-        } catch (e: Exception) {
-            ApiResponse.Error(e.message ?: "Failed to create support room")
+    override suspend fun getOrCreateSupportRoom(userId: String, orderId: String?): ApiResponse<ChatRoom> = safeRequest {
+        client.post("chats/support") {
+            contentType(ContentType.Application.Json)
+            setBody(mapOf("userId" to userId, "orderId" to orderId))
         }
     }
     
-    override suspend fun markMessagesAsRead(roomId: String): ApiResponse<Unit> {
-         return try {
-             val response: ApiResponse<Unit> = client.put("chats/$roomId/read").body()
-             response
-        } catch (e: Exception) {
-            ApiResponse.Error(e.message ?: "Failed to mark messages as read")
+    override suspend fun markMessagesAsRead(roomId: String): ApiResponse<Unit> = safeRequest {
+        client.put("chats/$roomId/read")
+    }
+
+    override suspend fun searchRestaurants(query: String, location: Location): ApiResponse<List<Restaurant>> = safeRequest {
+        client.get("restaurants/search") {
+            parameter("query", query)
+            parameter("lat", location.latitude)
+            parameter("lng", location.longitude)
         }
     }
 
-    override suspend fun searchRestaurants(query: String, location: Location): ApiResponse<List<Restaurant>> {
-        return try {
-            val response: ApiResponse<List<Restaurant>> = client.get("restaurants/search") {
-                parameter("query", query)
-                parameter("lat", location.latitude)
-                parameter("lng", location.longitude)
-            }.body()
-            response
-        } catch (e: Exception) {
-            ApiResponse.Error(e.message ?: "Failed to search restaurants")
+    override suspend fun getNearbyRestaurants(location: Location, radius: Int): ApiResponse<List<Restaurant>> = safeRequest {
+        client.get("restaurants/nearby") {
+            parameter("lat", location.latitude)
+            parameter("lng", location.longitude)
+            parameter("radius", radius)
         }
     }
 
-    override suspend fun getNearbyRestaurants(location: Location, radius: Int): ApiResponse<List<Restaurant>> {
-        return try {
-            val response: ApiResponse<List<Restaurant>> = client.get("restaurants/nearby") {
-                parameter("lat", location.latitude)
-                parameter("lng", location.longitude)
-                parameter("radius", radius)
-            }.body()
-            response
-        } catch (e: Exception) {
-            ApiResponse.Error(e.message ?: "Failed to fetch nearby restaurants")
-        }
+    override suspend fun getRestaurantCategories(restaurantId: String): ApiResponse<List<MenuCategory>> = safeRequest {
+        client.get("menu/restaurants/$restaurantId/categories")
     }
 
-    override suspend fun getRestaurantCategories(restaurantId: String): ApiResponse<List<MenuCategory>> {
-        return try {
-            // Updated to the route provided by the user
-            val rawResponse = client.get("menu/restaurants/$restaurantId/categories").bodyAsText()
-            println("DEBUG_CATEGORIES_RESPONSE: $rawResponse")
-            val response: ApiResponse<List<MenuCategory>> = json.decodeFromString(rawResponse)
-            response
-        } catch (e: Exception) {
-            println("DEBUG_CATEGORIES_ERROR: ${e.message}")
-            println("JSON input: ${if (e is kotlinx.serialization.SerializationException) "" else ""}") // Helper for debugging
-            ApiResponse.Error(e.message ?: "Failed to fetch categories")
-        }
+    override suspend fun getCategoryItems(categoryId: String): ApiResponse<List<MenuItem>> = safeRequest {
+        client.get("menu/categories/$categoryId/items")
     }
 
-    override suspend fun getCategoryItems(categoryId: String): ApiResponse<List<MenuItem>> {
-        return try {
-            val rawResponse = client.get("menu/categories/$categoryId/items").bodyAsText()
-            println("DEBUG_CATEGORY_ITEMS_RESPONSE: $rawResponse")
-            val response: ApiResponse<List<MenuItem>> = json.decodeFromString(rawResponse)
-            response
-        } catch (e: Exception) {
-            println("DEBUG_CATEGORY_ITEMS_ERROR: ${e.message}")
-            ApiResponse.Error(e.message ?: "Failed to fetch category items")
-        }
+    override suspend fun getPopularItems(restaurantId: String): ApiResponse<List<MenuItem>> = safeRequest {
+        client.get("menu/restaurants/$restaurantId/popular")
     }
 
-    override suspend fun getPopularItems(restaurantId: String): ApiResponse<List<MenuItem>> {
-        return try {
-            val response: ApiResponse<List<MenuItem>> = client.get("menu/restaurants/$restaurantId/popular").body()
-            response
-        } catch (e: Exception) {
-            ApiResponse.Error(e.message ?: "Failed to fetch popular items")
+    override suspend fun getNotifications(userId: String): ApiResponse<List<Notification>> = safeRequest {
+        client.get("users/$userId/notifications")
+    }
+
+    override suspend fun markNotificationAsRead(notificationId: String): ApiResponse<Unit> = safeRequest {
+        client.put("notifications/$notificationId/read")
+    }
+
+    override suspend fun registerFcmToken(userId: String, token: String): ApiResponse<Unit> = safeRequest {
+        client.post("users/$userId/fcm-token") {
+            contentType(ContentType.Application.Json)
+            setBody(mapOf("token" to token))
         }
     }
 }
 
 @Serializable
 data class ApiResponse<T>(
-    val success: Boolean,
+    val success: Boolean = true,
     val data: T? = null,
     val error: String? = null,
     val message: String? = null
@@ -374,13 +296,25 @@ data class RegisterRequest(
 )
 
 @Serializable
+data class DeliveryAddressRequest(
+    @SerialName("lat")
+    val latitude: Double,
+    @SerialName("lng")
+    val longitude: Double,
+    val address: String,
+    val instructions: String? = null
+)
+
+@Serializable
 data class CreateOrderRequest(
+    val customerId: String,
     val restaurantId: String,
     val items: List<OrderItemRequest>,
-    val deliveryAddress: Address,
+    val deliveryAddress: DeliveryAddressRequest,
     val paymentMethod: PaymentMethod,
+    val mpesaPhone: String? = null,
     val specialInstructions: String? = null,
-    val mpesaPhone: String? = null
+    val tip: Double? = null
 )
 
 @Serializable
@@ -420,6 +354,12 @@ data class MpesaPaymentRequest(
 data class MpesaPaymentResponse(
     val checkoutRequestId: String,
     val customerMessage: String
+)
+
+@Serializable
+data class MpesaStatusResponse(
+    val status: String,
+    val message: String? = null
 )
 
 @Serializable

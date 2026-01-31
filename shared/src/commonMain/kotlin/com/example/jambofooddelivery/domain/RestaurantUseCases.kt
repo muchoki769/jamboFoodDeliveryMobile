@@ -12,3 +12,11 @@ class GetRestaurantsUseCase(
         return restaurantRepository.getRestaurants(location)
     }
 }
+
+class SearchRestaurantsUseCase(
+    private val restaurantRepository: RestaurantRepository
+) {
+    suspend operator fun invoke(query: String, location: Location): Result<List<Restaurant>> {
+        return restaurantRepository.searchRestaurants(query, location)
+    }
+}

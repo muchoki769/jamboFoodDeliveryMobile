@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -19,6 +20,7 @@ import com.example.jambofooddelivery.ui.screens.CheckoutScreen
 import com.example.jambofooddelivery.ui.screens.HomeScreen
 import com.example.jambofooddelivery.ui.screens.LocationPermissionScreen
 import com.example.jambofooddelivery.ui.screens.LoginScreen
+import com.example.jambofooddelivery.ui.screens.NotificationScreen
 import com.example.jambofooddelivery.ui.screens.OrderTrackingScreen
 import com.example.jambofooddelivery.ui.screens.OrdersScreen
 import com.example.jambofooddelivery.ui.screens.ProfileScreen
@@ -34,20 +36,29 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
+        val orderIdFromNotification = intent.getStringExtra("orderId")
+
         setContent {
-            JamboFoodDeliveryApp()
+            JamboFoodDeliveryApp(initialOrderId = orderIdFromNotification)
         }
     }
 }
 
 @Composable
-fun JamboFoodDeliveryApp() {
+fun JamboFoodDeliveryApp(initialOrderId: String? = null) {
     JamboFoodDeliveryTheme {
         Surface(
             modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.background
         ){
             val navController = rememberNavController()
+
+            // Handle navigation from notification
+            LaunchedEffect(initialOrderId) {
+                if (initialOrderId != null) {
+                    navController.navigate("order-tracking/$initialOrderId")
+                }
+            }
 
             NavHost(
                 navController = navController,
@@ -112,7 +123,17 @@ fun JamboFoodDeliveryApp() {
                         },
                         onNavigateToProfile = { navController.navigate("profile") },
                         onNavigateToOrders = { navController.navigate("orders") },
-                        onNavigateToCart = { navController.navigate("cart") }
+                        onNavigateToCart = { navController.navigate("cart") },
+                        onNavigateToNotifications = { navController.navigate("notifications") }
+                    )
+                }
+
+                composable("notifications") {
+                    NotificationScreen(
+                        onBack = { navController.popBackStack() },
+                        onNavigateToOrder = { orderId ->
+                            navController.navigate("order-tracking/$orderId")
+                        }
                     )
                 }
 

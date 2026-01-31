@@ -32,10 +32,13 @@ val appModule = module {
     singleOf(::ChatRepositoryImpl) { bind<ChatRepository>() }
     singleOf(::LocationRepositoryImpl) { bind<LocationRepository>() }
     singleOf(::CartRepositoryImpl) { bind<CartRepository>() }
+    singleOf(::NotificationRepositoryImpl) { bind<NotificationRepository>() }
+
     // Use Cases
     singleOf(::LoginUseCase)
     singleOf(::RegisterUseCase)
     singleOf(::GetRestaurantsUseCase)
+    singleOf(::SearchRestaurantsUseCase)
     singleOf(::CreateOrderUseCase)
     singleOf(::TrackOrderUseCase)
     singleOf(::ProcessPaymentUseCase)

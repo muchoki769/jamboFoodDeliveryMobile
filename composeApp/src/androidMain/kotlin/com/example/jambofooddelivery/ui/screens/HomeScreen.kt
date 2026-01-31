@@ -24,6 +24,7 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.LocationOn
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.Schedule
@@ -111,7 +112,8 @@ fun HomeScreen(
     onNavigateToRestaurant: (String) -> Unit,
     onNavigateToProfile: () -> Unit,
     onNavigateToOrders: () -> Unit,
-    onNavigateToCart: () -> Unit
+    onNavigateToCart: () -> Unit,
+    onNavigateToNotifications: () -> Unit
 ) {
     val viewModel: HomeViewModel = koinViewModel()
     val state by viewModel.state.collectAsState()
@@ -127,7 +129,8 @@ fun HomeScreen(
             HomeAppBar(
                 address = state.address,
                 onProfileClick = onNavigateToProfile,
-                onCartClick = onNavigateToCart
+                onCartClick = onNavigateToCart,
+                onNotificationClick = onNavigateToNotifications
             )
         },
         bottomBar = {
@@ -180,7 +183,8 @@ fun HomeScreen(
 fun HomeAppBar(
     address: String?,
     onProfileClick: () -> Unit,
-    onCartClick: () -> Unit
+    onCartClick: () -> Unit,
+    onNotificationClick: () -> Unit
 ) {
     val authRepository: AuthRepository = koinInject()
     val currentUser by authRepository.getCurrentUser().collectAsState(initial = null)
@@ -212,6 +216,10 @@ fun HomeAppBar(
             }
         },
         actions = {
+            IconButton(onClick = onNotificationClick) {
+                Icon(Icons.Outlined.Notifications, contentDescription = "Notifications")
+            }
+
             IconButton(onClick = onCartClick) {
                 BadgedBox(badge = {
                     Text("0")

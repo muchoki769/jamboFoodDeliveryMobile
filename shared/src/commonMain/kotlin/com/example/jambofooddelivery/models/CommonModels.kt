@@ -126,6 +126,8 @@ data class MenuItem(
 @Serializable
 data class CartItem(
     val id: String,
+    @SerialName("restaurant_id")
+    val restaurantId: String,
     val menuItem: MenuItem,
     val quantity: Int,
     @SerialName("special_instructions")
@@ -147,15 +149,17 @@ data class Order(
     @SerialName("rider_id")
     val riderId: String? = null,
     val status: OrderStatus,
-    val items: List<OrderItem>,
+    val items: List<OrderItem> = emptyList(),
     @SerialName("total_amount")
-    val totalAmount: Double,
+    val totalAmount: String,
     @SerialName("delivery_fee")
-    val deliveryFee: Double,
+    val deliveryFee: String,
     @SerialName("tax_amount")
-    val taxAmount: Double,
+    val taxAmount: String,
+    @SerialName("discount_amount")
+    val discountAmount: String = "0.00",
     @SerialName("final_amount")
-    val finalAmount: Double,
+    val finalAmount: String,
     @SerialName("delivery_address")
     val deliveryAddress: Address,
     @SerialName("special_instructions")
@@ -163,16 +167,35 @@ data class Order(
     @SerialName("estimated_delivery_time")
     val estimatedDeliveryTime: Instant? = null,
     @SerialName("actual_delivery_time")
-    val actualDeliveryTime: Instant? = null,
+    val actual_delivery_time: Instant? = null,
     @SerialName("payment_status")
     val paymentStatus: PaymentStatus,
     @SerialName("payment_method")
     val paymentMethod: PaymentMethod,
+    @SerialName("stripe_payment_intent_id")
+    val stripePaymentIntentId: String? = null,
     @SerialName("created_at")
     val createdAt: Instant,
     @SerialName("updated_at")
-    val updatedAt: Instant
-)
+    val updatedAt: Instant,
+    
+    // Extended fields from getOrderWithDetails
+    @SerialName("restaurant_name")
+    val restaurantName: String? = null,
+    @SerialName("restaurant_logo")
+    val restaurantLogo: String? = null,
+    @SerialName("rider_first_name")
+    val riderFirstName: String? = null,
+    @SerialName("rider_last_name")
+    val riderLastName: String? = null,
+    val tracking: List<OrderTracking> = emptyList()
+) {
+    val totalAmountDouble: Double get() = totalAmount.toDoubleOrNull() ?: 0.0
+    val deliveryFeeDouble: Double get() = deliveryFee.toDoubleOrNull() ?: 0.0
+    val taxAmountDouble: Double get() = taxAmount.toDoubleOrNull() ?: 0.0
+    val discountAmountDouble: Double get() = discountAmount.toDoubleOrNull() ?: 0.0
+    val finalAmountDouble: Double get() = finalAmount.toDoubleOrNull() ?: 0.0
+}
 
 
 @Serializable
@@ -184,11 +207,27 @@ data class OrderItem(
     val menuItemName: String,
     val quantity: Int,
     @SerialName("unit_price")
-    val unitPrice: Double,
+    val unitPrice: String,
     @SerialName("total_price")
-    val totalPrice: Double,
+    val totalPrice: String,
     @SerialName("special_instructions")
-    val specialInstructions: String? = null
+    val specialInstructions: String? = null,
+    @SerialName("menu_item_image")
+    val menuItemImage: String? = null
+) {
+    val unitPriceDouble: Double get() = unitPrice.toDoubleOrNull() ?: 0.0
+    val totalPriceDouble: Double get() = totalPrice.toDoubleOrNull() ?: 0.0
+}
+
+@Serializable
+data class OrderTracking(
+    val id: String,
+    @SerialName("order_id")
+    val orderId: String,
+    val status: OrderStatus,
+    val notes: String? = null,
+    @SerialName("created_at")
+    val createdAt: Instant
 )
 
 @Serializable
@@ -200,11 +239,15 @@ data class Address(
     val postalCode: String? = null,
     val country: String? = null,
     val phone: String? = null,
+    @SerialName("lat")
     val latitude: Double? = null,
-    val longitude: Double? = null
+    @SerialName("lng")
+    val longitude: Double? = null,
+    val address: String? = null,
+    val instructions: String? = null
 ) {
     val fullAddress: String
-        get() = listOfNotNull(street, city, country).joinToString(", ")
+        get() = address ?: listOfNotNull(street, city, country).joinToString(", ")
 }
 
 @Serializable
