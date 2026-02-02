@@ -12,13 +12,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.jambofooddelivery.ui.ViewModels.ProfileViewModel
+import com.example.jambofooddelivery.ui.components.BottomNavigationBar
 import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OrdersScreen(
     onBack: () -> Unit,
-    onTrackOrder: (String) -> Unit
+    onTrackOrder: (String) -> Unit,
+    onNavigateToHome: () -> Unit,
+    onNavigateToProfile: () -> Unit,
+    onNavigateToSettings: () -> Unit
 ) {
     val viewModel: ProfileViewModel = koinViewModel()
     val state by viewModel.state.collectAsState()
@@ -33,6 +37,15 @@ fun OrdersScreen(
                     }
                 }
             )
+        },
+        bottomBar = {
+            BottomNavigationBar(
+                selectedRoute = "orders",
+                onHomeClick = onNavigateToHome,
+                onOrdersClick = { /* Already here */ },
+                onProfileClick = onNavigateToProfile,
+                onSettingsClick = onNavigateToSettings
+            )
         }
     ) { paddingValues ->
         LazyColumn(
@@ -42,7 +55,6 @@ fun OrdersScreen(
                 .padding(16.dp)
         ) {
             items(state.orders) { order ->
-                // Order item layout
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()

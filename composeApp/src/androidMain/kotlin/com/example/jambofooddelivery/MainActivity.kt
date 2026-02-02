@@ -15,18 +15,7 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.example.jambofooddelivery.ui.screens.CartScreen
-import com.example.jambofooddelivery.ui.screens.CheckoutScreen
-import com.example.jambofooddelivery.ui.screens.HomeScreen
-import com.example.jambofooddelivery.ui.screens.LocationPermissionScreen
-import com.example.jambofooddelivery.ui.screens.LoginScreen
-import com.example.jambofooddelivery.ui.screens.NotificationScreen
-import com.example.jambofooddelivery.ui.screens.OrderTrackingScreen
-import com.example.jambofooddelivery.ui.screens.OrdersScreen
-import com.example.jambofooddelivery.ui.screens.ProfileScreen
-import com.example.jambofooddelivery.ui.screens.RegisterScreen
-import com.example.jambofooddelivery.ui.screens.RestaurantDetailScreen
-import com.example.jambofooddelivery.ui.screens.SplashScreen
+import com.example.jambofooddelivery.ui.screens.*
 import com.example.jambofooddelivery.ui.theme.JamboFoodDeliveryTheme
 
 
@@ -124,7 +113,8 @@ fun JamboFoodDeliveryApp(initialOrderId: String? = null) {
                         onNavigateToProfile = { navController.navigate("profile") },
                         onNavigateToOrders = { navController.navigate("orders") },
                         onNavigateToCart = { navController.navigate("cart") },
-                        onNavigateToNotifications = { navController.navigate("notifications") }
+                        onNavigateToNotifications = { navController.navigate("notifications") },
+                        onNavigateToSettings = { navController.navigate("settings") }
                     )
                 }
 
@@ -175,7 +165,10 @@ fun JamboFoodDeliveryApp(initialOrderId: String? = null) {
                         onBack = { navController.popBackStack() },
                         onTrackOrder = { orderId ->
                             navController.navigate("order-tracking/$orderId")
-                        }
+                        },
+                        onNavigateToHome = { navController.navigate("home") },
+                        onNavigateToProfile = { navController.navigate("profile") },
+                        onNavigateToSettings = { navController.navigate("settings") }
                     )
                 }
 
@@ -186,7 +179,24 @@ fun JamboFoodDeliveryApp(initialOrderId: String? = null) {
                             navController.navigate("login") {
                                 popUpTo(0) { inclusive = true }
                             }
-                        }
+                        },
+                        onNavigateToSettings = { navController.navigate("settings") },
+                        onNavigateToHome = { navController.navigate("home") },
+                        onNavigateToOrders = { navController.navigate("orders") }
+                    )
+                }
+
+                composable("settings") {
+                    SettingsScreen(
+                        onBack = { navController.popBackStack() },
+                        onLogout = {
+                            navController.navigate("login") {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        },
+                        onNavigateToHome = { navController.navigate("home") },
+                        onNavigateToOrders = { navController.navigate("orders") },
+                        onNavigateToProfile = { navController.navigate("profile") }
                     )
                 }
             }

@@ -16,8 +16,10 @@ data class OrderTrackingState(
     val order: Order? = null,
     val riderLocation: Location? = null,
     val estimatedDeliveryTime: String = "",
+    val etaMinutes: Int? = null,
     val currentStatus: OrderStatus = OrderStatus.PENDING,
     val trackingHistory: List<TrackingHistoryItem> = emptyList(),
+    val isRiderNearby: Boolean = false,
     val error: String? = null
 )
 
@@ -26,13 +28,15 @@ sealed class OrderTrackingEvent {
     data class RiderLocationUpdated(val location: Location) : OrderTrackingEvent()
     data class ShowError(val message: String) : OrderTrackingEvent()
     object OrderDelivered : OrderTrackingEvent()
+    object RiderNearby : OrderTrackingEvent()
 }
 
 data class TrackingHistoryItem(
     val timestamp: Long,
     val status: OrderStatus,
     val message: String,
-    val location: Location? = null
+    val location: Location? = null,
+    val isCompleted: Boolean = false
 )
 
 class OrderTrackingViewModel : BaseViewModel<OrderTrackingState, OrderTrackingEvent>(OrderTrackingState()), KoinComponent {
@@ -75,54 +79,6 @@ class OrderTrackingViewModel : BaseViewModel<OrderTrackingState, OrderTrackingEv
         }
     }
 
-    fun cancelOrder(orderId: String) {
-        launch {
-            setState { it.copy(isLoading = true) }
-
-            when (val result = orderRepository.cancelOrder(orderId)) {
-                is Result.Success<*> -> {
-                     val order = result.data as Order
-                    setState {
-                        it.copy(
-                            isLoading = false,
-                            order = order,
-                            currentStatus = OrderStatus.CANCELLED
-                        )
-                    }
-                }
-                is Result.Error -> {
-                    setState {
-                        it.copy(
-                            isLoading = false,
-                            error = result.message
-                        )
-                    }
-                    emitEvent(OrderTrackingEvent.ShowError(result.message))
-                }
-                is Result.Loading -> {
-                    // Already set via setState
-                }
-            }
-        }
-    }
-
-    fun refreshOrder(orderId: String) {
-        loadOrder(orderId)
-    }
-
-    fun clearError() {
-        setState { it.copy(error = null) }
-    }
-
-//    override fun clear() {
-//        orderTrackingJob?.cancel()
-//        super.clear()
-//    }
-    override fun onCleared() {
-        orderTrackingJob?.cancel()
-        super.onCleared()
-    }
-
     private fun startOrderTracking(orderId: String) {
         orderTrackingJob = launch {
             // Listen for real-time order updates
@@ -146,47 +102,41 @@ class OrderTrackingViewModel : BaseViewModel<OrderTrackingState, OrderTrackingEv
         // Listen for rider location updates
         launch {
             socketService.listenForRiderLocation(orderId).collect { location ->
+                // Backend provides ETA and status updates via socket
+                // We assume the location object might contain metadata or there's a separate stream
+                // For now, update the state with the new location
                 setState { it.copy(riderLocation = location) }
                 emitEvent(OrderTrackingEvent.RiderLocationUpdated(location))
+                
+                // If backend provides eta in the location or order object, update it here
             }
         }
     }
 
     private fun generateTrackingHistory(order: Order): List<TrackingHistoryItem> {
-        val events = mutableListOf<TrackingHistoryItem>()
-        val now = System.currentTimeMillis() 
-
-        fun createItem(status: OrderStatus, message: String) = TrackingHistoryItem(
-            timestamp = now,
-            status = status,
-            message = message
+        val statuses = listOf(
+            OrderStatus.PENDING to "Order Placed",
+            OrderStatus.PAYMENT_SUCCESSFUL to "Payment Confirmed",
+            OrderStatus.CONFIRMED to "Order Received",
+            OrderStatus.PREPARING to "Food is being prepared",
+            OrderStatus.READY to "Order Packed",
+            OrderStatus.PICKED_UP to "Rider picked up your order",
+            OrderStatus.ON_THE_WAY to "Order on the way",
+            OrderStatus.DELIVERED to "Delivered"
         )
-        
-        if (order.status.ordinal >= OrderStatus.PENDING.ordinal) {
-             events.add(createItem(OrderStatus.PENDING, "Order Placed"))
-        }
-        if (order.status.ordinal >= OrderStatus.CONFIRMED.ordinal) {
-             events.add(createItem(OrderStatus.CONFIRMED, "Order Confirmed"))
-        }
-        if (order.status.ordinal >= OrderStatus.PREPARING.ordinal) {
-             events.add(createItem(OrderStatus.PREPARING, "Preparing your food"))
-        }
-        if (order.status.ordinal >= OrderStatus.READY.ordinal) {
-             events.add(createItem(OrderStatus.READY, "Order Ready"))
-        }
-        if (order.status.ordinal >= OrderStatus.PICKED_UP.ordinal) {
-             events.add(createItem(OrderStatus.PICKED_UP, "Rider picked up order"))
-        }
-        if (order.status.ordinal >= OrderStatus.ON_THE_WAY.ordinal) {
-             events.add(createItem(OrderStatus.ON_THE_WAY, "Order on the way"))
-        }
-        if (order.status.ordinal >= OrderStatus.DELIVERED.ordinal) {
-             events.add(createItem(OrderStatus.DELIVERED, "Delivered"))
-        }
-        if (order.status == OrderStatus.CANCELLED) {
-            events.add(createItem(OrderStatus.CANCELLED, "Order Cancelled"))
-        }
 
-        return events
+        return statuses.map { (status, message) ->
+            TrackingHistoryItem(
+                timestamp = System.currentTimeMillis(),
+                status = status,
+                message = message,
+                isCompleted = order.status.ordinal >= status.ordinal
+            )
+        }
+    }
+
+    override fun onCleared() {
+        orderTrackingJob?.cancel()
+        super.onCleared()
     }
 }

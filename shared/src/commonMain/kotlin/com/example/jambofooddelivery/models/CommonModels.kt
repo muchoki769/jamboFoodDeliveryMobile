@@ -261,6 +261,8 @@ data class Location(
 enum class OrderStatus {
     @SerialName("pending")
     PENDING,
+    @SerialName("payment_successful")
+    PAYMENT_SUCCESSFUL,
     @SerialName("confirmed")
     CONFIRMED,
     @SerialName("preparing")
