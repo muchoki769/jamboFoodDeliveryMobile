@@ -102,13 +102,8 @@ class OrderTrackingViewModel : BaseViewModel<OrderTrackingState, OrderTrackingEv
         // Listen for rider location updates
         launch {
             socketService.listenForRiderLocation(orderId).collect { location ->
-                // Backend provides ETA and status updates via socket
-                // We assume the location object might contain metadata or there's a separate stream
-                // For now, update the state with the new location
                 setState { it.copy(riderLocation = location) }
                 emitEvent(OrderTrackingEvent.RiderLocationUpdated(location))
-                
-                // If backend provides eta in the location or order object, update it here
             }
         }
     }
@@ -125,12 +120,17 @@ class OrderTrackingViewModel : BaseViewModel<OrderTrackingState, OrderTrackingEv
             OrderStatus.DELIVERED to "Delivered"
         )
 
+        // Check the actual tracking history from the backend for each status
+        val historyStatusSet = order.tracking.map { it.status }.toSet()
+
         return statuses.map { (status, message) ->
+            val historyEntry = order.tracking.find { it.status == status }
             TrackingHistoryItem(
-                timestamp = System.currentTimeMillis(),
+                timestamp = historyEntry?.createdAt?.toEpochMilliseconds() ?: System.currentTimeMillis(),
                 status = status,
                 message = message,
-                isCompleted = order.status.ordinal >= status.ordinal
+                // A step is completed if it's in the tracking history OR if the current order status is further ahead
+                isCompleted = historyStatusSet.contains(status) || order.status.ordinal >= status.ordinal
             )
         }
     }

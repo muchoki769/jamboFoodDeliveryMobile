@@ -333,6 +333,7 @@ data class OrderResponse(
 @Serializable
 data class PaymentIntentRequest(
     val orderId: String,
+    val customerId: String,
     val amount: Double,
     val currency: String = "usd"
 )

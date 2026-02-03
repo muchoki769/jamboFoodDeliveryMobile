@@ -9,10 +9,11 @@ import com.example.jambofooddelivery.utils.Result
 class ProcessPaymentUseCase(
     private val paymentRepository: PaymentRepository
 ) {
-    suspend fun createStripePaymentIntent(orderId: String, amount: Double): Result<PaymentIntentResponse> {
-        return paymentRepository.createStripePaymentIntent(orderId, amount)
+    suspend fun createStripePaymentIntent(orderId: String, customerId: String, amount: Double): Result<PaymentIntentResponse> {
+        return paymentRepository.createStripePaymentIntent(orderId, customerId, amount)
     }
 
+    //mpesa status will begotten from backend(apiService.createOrder)
     suspend fun getMpesaStatus(checkoutRequestId: String): Result<MpesaStatusResponse> {
         return paymentRepository.getMpesaStatus(checkoutRequestId)
     }

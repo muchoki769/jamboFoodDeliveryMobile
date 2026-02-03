@@ -8,7 +8,7 @@ import com.example.jambofooddelivery.remote.PaymentIntentResponse
 import com.example.jambofooddelivery.utils.Result
 
 interface PaymentRepository {
-    suspend fun createStripePaymentIntent(orderId: String, amount: Double): Result<PaymentIntentResponse>
+    suspend fun createStripePaymentIntent(orderId: String, customerId: String, amount: Double): Result<PaymentIntentResponse>
     suspend fun getMpesaStatus(checkoutRequestId: String): Result<MpesaStatusResponse>
     suspend fun confirmPayment(orderId: String, paymentIntentId: String): Result<Boolean>
     suspend fun getPaymentMethods(): Result<List<PaymentMethod>>
@@ -18,10 +18,10 @@ class PaymentRepositoryImpl(
     private val apiService: ApiService
 ) : PaymentRepository {
 
-    override suspend fun createStripePaymentIntent(orderId: String, amount: Double): Result<PaymentIntentResponse> {
+    override suspend fun createStripePaymentIntent(orderId: String, customerId: String, amount: Double): Result<PaymentIntentResponse> {
         return try {
             val response = apiService.createPaymentIntent(
-                PaymentIntentRequest(orderId, amount)
+                PaymentIntentRequest(orderId = orderId, customerId = customerId, amount = amount)
             )
             if (response.success && response.data != null) {
                 Result.Success(response.data)
