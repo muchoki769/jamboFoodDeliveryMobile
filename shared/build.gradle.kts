@@ -89,7 +89,8 @@ kotlin {
             implementation("com.google.firebase:firebase-crashlytics")
             implementation("com.google.firebase:firebase-messaging")
 
-
+            // Paystack Android SDK
+            implementation(libs.paystack.android)
         }
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)
@@ -109,7 +110,7 @@ kotlin {
 
 
 android {
-    namespace = "com.example.jambofooddelivery.shared"
+    namespace = "com.jambofooddelivery.shared"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -124,7 +125,7 @@ android {
 sqldelight {
     databases {
         create("AppDatabase") {
-            packageName.set("com.example.jambofooddelivery.cache")
+            packageName.set("com.jambofooddelivery.cache")
         }
     }
 }

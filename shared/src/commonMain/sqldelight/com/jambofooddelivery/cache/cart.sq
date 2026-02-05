@@ -1,0 +1,26 @@
+CREATE TABLE cart_item (
+    id TEXT PRIMARY KEY,
+    restaurant_id TEXT NOT NULL,
+    menu_item_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    price REAL NOT NULL,
+    image_url TEXT,
+    quantity INTEGER NOT NULL,
+    special_instructions TEXT,
+    added_at INTEGER NOT NULL
+);
+
+
+insertCartItem:
+INSERT OR REPLACE INTO cart_item (id, restaurant_id, menu_item_id, name, description, price, image_url, quantity, special_instructions, added_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+getCartItems:
+SELECT * FROM cart_item ORDER BY added_at DESC;
+
+removeItem:
+DELETE FROM cart_item WHERE id = ?;
+
+clearCart:
+DELETE FROM cart_item;

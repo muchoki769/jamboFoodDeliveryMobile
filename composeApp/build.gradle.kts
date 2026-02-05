@@ -1,5 +1,7 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
+import java.io.FileInputStream
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -26,6 +28,9 @@ kotlin {
             // Coil 3 Android specific
             implementation("io.coil-kt.coil3:coil:3.0.4")
             implementation("io.coil-kt.coil3:coil-network-okhttp:3.0.4")
+            
+            // Paystack Android SDK
+            implementation(libs.paystack.android)
         }
         commonMain.dependencies {
             implementation(compose.runtime)
@@ -55,12 +60,18 @@ kotlin {
     }
 }
 
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+val keystoreProperties = Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+}
+
 android {
-    namespace = "com.example.jambofooddelivery"
+    namespace = "com.jambofooddelivery"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {
-        applicationId = "com.example.jambofooddelivery"
+        applicationId = "com.jambofooddelivery"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
@@ -71,6 +82,16 @@ android {
             useSupportLibrary = true
         }
     }
+
+    signingConfigs {
+        create("release") {
+            keyAlias = keystoreProperties["keyAlias"] as String?
+            keyPassword = keystoreProperties["keyPassword"] as String?
+            storeFile = keystoreProperties["storeFile"]?.let { file(it) }
+            storePassword = keystoreProperties["storePassword"] as String?
+        }
+    }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -81,6 +102,7 @@ android {
             isMinifyEnabled = true // Enabled ProGuard/R8
             isShrinkResources = true // Enabled Resource Shrinking
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.getByName("release")
         }
         getByName("debug") {
             isMinifyEnabled = false
