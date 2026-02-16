@@ -272,6 +272,8 @@ enum class OrderStatus {
     PREPARING,
     @SerialName("ready")
     READY,
+    @SerialName("rider_assigned")
+    RIDER_ASSIGNED,
     @SerialName("picked_up")
     PICKED_UP,
     @SerialName("on_the_way")

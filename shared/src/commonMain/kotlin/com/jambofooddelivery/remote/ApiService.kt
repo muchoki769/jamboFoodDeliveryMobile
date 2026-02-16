@@ -26,6 +26,9 @@ import kotlinx.serialization.json.Json
 interface ApiService {
     suspend fun login(request: LoginRequest): ApiResponse<AuthResponse>
     suspend fun register(request: RegisterRequest): ApiResponse<AuthResponse>
+    suspend fun forgotPassword(email: String): ApiResponse<Unit>
+    suspend fun verifyResetToken(token: String): ApiResponse<Unit>
+    suspend fun resetPassword(password: String, token: String): ApiResponse<Unit>
     suspend fun getRestaurants(location: Location): ApiResponse<List<Restaurant>>
     suspend fun getRestaurantMenu(restaurantId: String): ApiResponse<Restaurant>
     suspend fun createOrder(request: CreateOrderRequest): ApiResponse<OrderResponse>
@@ -102,6 +105,26 @@ class ApiServiceImpl(private val client: HttpClient) : ApiService {
         client.post("auth/login") {
             contentType(ContentType.Application.Json)
             setBody(request)
+        }
+    }
+
+    override suspend fun forgotPassword(email: String): ApiResponse<Unit> = safeRequest {
+        client.post("auth/forgot-password") {
+            contentType(ContentType.Application.Json)
+            setBody(mapOf("email" to email))
+        }
+    }
+
+    override suspend fun verifyResetToken(token: String): ApiResponse<Unit> = safeRequest {
+        client.get("auth/verify-reset-token") {
+            parameter("token", token)
+        }
+    }
+
+    override suspend fun resetPassword(password: String, token: String): ApiResponse<Unit> = safeRequest {
+        client.post("auth/reset-password") {
+            contentType(ContentType.Application.Json)
+            setBody(mapOf("password" to password, "token" to token))
         }
     }
 

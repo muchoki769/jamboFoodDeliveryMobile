@@ -72,4 +72,43 @@ class AuthRepositoryImpl(
     override suspend fun isLoggedIn(): Boolean {
         return appSettings.getToken() != null
     }
+
+    override suspend fun forgotPassword(email: String): Result<Unit> {
+        return try {
+            val response = apiService.forgotPassword(email)
+            if (response.success) {
+                Result.Success(Unit)
+            } else {
+                Result.Error(response.error ?: "Failed to send reset email")
+            }
+        } catch (e: Exception) {
+            Result.Error("Network error: ${e.message}")
+        }
+    }
+
+    override suspend fun verifyResetToken(token: String): Result<Unit> {
+        return try {
+            val response = apiService.verifyResetToken(token)
+            if (response.success) {
+                Result.Success(Unit)
+            } else {
+                Result.Error(response.error ?: "Invalid reset token")
+            }
+        } catch (e: Exception) {
+            Result.Error("Network error: ${e.message}")
+        }
+    }
+
+    override suspend fun resetPassword(password: String, token: String): Result<Unit> {
+        return try {
+            val response = apiService.resetPassword(password, token)
+            if (response.success) {
+                Result.Success(Unit)
+            } else {
+                Result.Error(response.error ?: "Failed to reset password")
+            }
+        } catch (e: Exception) {
+            Result.Error("Network error: ${e.message}")
+        }
+    }
 }

@@ -9,10 +9,11 @@ class SendMessageUseCase(
     private val chatRepository: ChatRepository
 ) {
     suspend operator fun invoke(
-        roomId: String, 
+        roomId: String,
+        senderId: String,
         message: String, 
         type: MessageType = MessageType.TEXT
     ): Result<ChatMessage> {
-        return chatRepository.sendMessage(roomId, message, type)
+        return chatRepository.sendMessage(roomId, message, senderId,type)
     }
 }

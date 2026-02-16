@@ -33,45 +33,50 @@ kotlin {
         commonMain.dependencies {
 
             // Coroutines
-            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
+            implementation(libs.kotlinx.coroutines.core)
 
             // Ktor Client
-            implementation("io.ktor:ktor-client-core:2.3.4")
-            implementation("io.ktor:ktor-client-content-negotiation:2.3.4")
-            implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.4")
-            implementation("io.ktor:ktor-client-logging:2.3.4")
-            implementation("io.ktor:ktor-client-auth:2.3.4")
+            implementation(libs.ktor.client.core)
+            implementation(libs.ktor.client.content.negotiation)
+            implementation(libs.ktor.serialization.kotlinx.json)
+            implementation(libs.ktor.client.logging)
+            implementation(libs.ktor.client.auth)
 
             // DateTime
-            implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.4.1")
+            implementation(libs.kotlinx.datetime)
 
             // Kotlinx Serialization
-            implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
+            implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
             
             // SQLDelight
             implementation(libs.runtime)
-            implementation("app.cash.sqldelight:coroutines-extensions:2.0.1")
+            implementation("app.cash.sqldelight:coroutines-extensions:${libs.versions.sqlDelight.get()}")
 
             // Koin DI
-            implementation("io.insert-koin:koin-core:3.4.3")
+            implementation(libs.koin.core)
 
 
             // russhwolf
-            implementation("com.russhwolf:multiplatform-settings:1.1.1")
-            implementation("com.russhwolf:multiplatform-settings-coroutines:1.1.1")
+            implementation("com.russhwolf:multiplatform-settings:1.2.0")
+            implementation("com.russhwolf:multiplatform-settings-coroutines:1.2.0")
 
             // Logger
-            implementation("io.github.aakira:napier:2.6.1")
+            implementation("io.github.aakira:napier:2.7.1")
 
             // Cloudinary URL Gen (Common)
             implementation("com.cloudinary:kotlin-url-gen:1.7.0")
+
+            // Socket.IO KMP (Standard Production Library)
+//            api(libs.socketio.kmp)
+//            implementation("io.socket:socket.io-client:2.1.0")
+            implementation("dev.icerock.moko:socket-io:0.6.0")
 
         }
         androidMain.dependencies {
             implementation(libs.tehras.charts)
 
             // Ktor Android
-            implementation("io.ktor:ktor-client-okhttp:2.3.4")
+            implementation(libs.ktor.client.android)
 
             //koin
             implementation("io.insert-koin:koin-android:3.5.6")
@@ -81,10 +86,10 @@ kotlin {
 
             
             // Location Services
-            implementation("com.google.android.gms:play-services-location:21.0.1")
+            implementation("com.google.android.gms:play-services-location:21.3.0")
 
             // Firebase
-            implementation(project.dependencies.platform("com.google.firebase:firebase-bom:32.3.1"))
+            implementation(project.dependencies.platform("com.google.firebase:firebase-bom:33.7.0"))
             implementation("com.google.firebase:firebase-analytics")
             implementation("com.google.firebase:firebase-crashlytics")
             implementation("com.google.firebase:firebase-messaging")
@@ -101,7 +106,7 @@ kotlin {
             implementation(libs.kotlin.test)
             implementation(kotlin("test-common"))
             implementation(kotlin("test-annotations-common"))
-            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
+            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:${libs.versions.coroutinesVersion.get()}")
         }
     }
 
@@ -119,7 +124,12 @@ android {
     defaultConfig {
         minSdk = libs.versions.android.minSdk.get().toInt()
     }
-
+    
+    packaging {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+    }
 }
 
 sqldelight {

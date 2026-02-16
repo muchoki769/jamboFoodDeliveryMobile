@@ -5,7 +5,9 @@ import android.os.Build
 import androidx.annotation.RequiresApi
 import com.jambofooddelivery.cache.AndroidDatabaseDriverFactory
 import com.jambofooddelivery.cache.DatabaseDriverFactory
-import com.jambofooddelivery.ui.ViewModels.*
+import com.jambofooddelivery.Ui.ViewModels.*
+import com.jambofooddelivery.Ui.ViewModels.auth.ForgotPasswordViewModel
+import com.jambofooddelivery.Ui.ViewModels.auth.ResetPasswordViewModel
 import com.jambofooddelivery.utils.NotificationHelper
 import org.koin.dsl.module
 
@@ -23,6 +25,11 @@ val androidModule = module {
     factory { ProfileViewModel() }
     factory { NotificationViewModel() }
     factory {SettingsViewModel()}
+    factory { ForgotPasswordViewModel() }
+    factory { ResetPasswordViewModel() }
+
+
+
 
 
     single<DatabaseDriverFactory> { AndroidDatabaseDriverFactory(get()) }

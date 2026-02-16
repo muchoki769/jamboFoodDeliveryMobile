@@ -15,8 +15,8 @@ interface ChatRepository {
     suspend fun getChatRooms(userId: String): Result<List<ChatRoom>>
     suspend fun getOrCreateSupportRoom(userId: String, orderId: String? = null): Result<ChatRoom>
     suspend fun getChatMessages(roomId: String): Result<List<ChatMessage>>
-    suspend fun sendMessage(roomId: String, message: String, type: MessageType): Result<ChatMessage>
-    suspend fun sendImageMessage(roomId: String, imageBytes: ByteArray): Result<ChatMessage>
+    suspend fun sendMessage(roomId: String, senderId: String, message: String, type: MessageType): Result<ChatMessage>
+    suspend fun sendImageMessage(roomId: String, senderId: String, imageBytes: ByteArray): Result<ChatMessage>
     fun listenForNewMessages(roomId: String): Flow<ChatMessage>
     suspend fun markMessagesAsRead(roomId: String)
 }
@@ -65,8 +65,14 @@ class ChatRepositoryImpl(
         }
     }
 
-    override suspend fun sendMessage(roomId: String, message: String, type: MessageType): Result<ChatMessage> {
+    override suspend fun sendMessage(roomId: String, senderId: String, message: String, type: MessageType): Result<ChatMessage> {
         return try {
+            // First send via Socket for real-time delivery
+            if (type == MessageType.TEXT) {
+                socketService.sendMessage(roomId, senderId, message)
+            }
+
+            // Then persist in DB
             val response = apiService.sendMessage(
                 SendMessageRequest(roomId, message, type)
             )
@@ -80,11 +86,11 @@ class ChatRepositoryImpl(
         }
     }
 
-    override suspend fun sendImageMessage(roomId: String, imageBytes: ByteArray): Result<ChatMessage> {
+    override suspend fun sendImageMessage(roomId: String, senderId: String, imageBytes: ByteArray): Result<ChatMessage> {
         return try {
             val imageUrl = cloudinaryService.uploadImage(imageBytes)
             if (imageUrl != null) {
-                sendMessage(roomId, imageUrl, MessageType.IMAGE)
+                sendMessage(roomId, senderId, imageUrl, MessageType.IMAGE)
             } else {
                 Result.Error("Failed to upload image")
             }

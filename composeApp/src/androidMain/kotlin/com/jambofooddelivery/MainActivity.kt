@@ -12,11 +12,14 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.jambofooddelivery.ui.screens.*
-import com.jambofooddelivery.ui.theme.JamboFoodDeliveryTheme
+import androidx.navigation.navArgument
+import androidx.navigation.navDeepLink
+import com.jambofooddelivery.Ui.screens.*
+import com.jambofooddelivery.Ui.theme.JamboFoodDeliveryTheme
 
 
 class MainActivity : ComponentActivity() {
@@ -75,7 +78,8 @@ fun JamboFoodDeliveryApp(initialOrderId: String? = null) {
                                 popUpTo("login") { inclusive = true }
                             }
                         },
-                        onNavigateToRegister = { navController.navigate("register") }
+                        onNavigateToRegister = { navController.navigate("register") },
+                        onNavigateToForgotPassword = { navController.navigate("forgot-password") }
                     )
                 }
 
@@ -87,6 +91,31 @@ fun JamboFoodDeliveryApp(initialOrderId: String? = null) {
                             }
                         },
                         onNavigateToLogin = { navController.navigate("login") }
+                    )
+                }
+
+                composable("forgot-password") {
+                    ForgotPasswordScreen(
+                        onNavigateBack = { navController.popBackStack() }
+                    )
+                }
+
+                composable(
+                    route = "reset-password/{token}",
+                    arguments = listOf(navArgument("token") { type = NavType.StringType }),
+                    deepLinks = listOf(navDeepLink {
+                        uriPattern = "https://jambofooddeliverybackend-754053186113.europe-west1.run.app/reset-password?token={token}"
+                    })
+                ) { backStackEntry ->
+                    val token = backStackEntry.arguments?.getString("token") ?: ""
+                    ResetPasswordScreen(
+                        token = token,
+                        onNavigateBack = { navController.popBackStack() },
+                        onResetSuccess = {
+                            navController.navigate("login") {
+                                popUpTo("forgot-password") { inclusive = true }
+                            }
+                        }
                     )
                 }
 
@@ -204,7 +233,23 @@ fun JamboFoodDeliveryApp(initialOrderId: String? = null) {
                         },
                         onNavigateToHome = { navController.navigate("home") },
                         onNavigateToOrders = { navController.navigate("orders") },
-                        onNavigateToProfile = { navController.navigate("profile") }
+                        onNavigateToProfile = { navController.navigate("profile") },
+                        onNavigateToSupport = { navController.navigate("support-chat") }
+                    )
+                }
+
+                composable(
+                    route = "support-chat?orderId={orderId}",
+                    arguments = listOf(navArgument("orderId") { 
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    })
+                ) { backStackEntry ->
+                    val orderId = backStackEntry.arguments?.getString("orderId")
+                    SupportChatScreen(
+                        orderId = orderId,
+                        onBack = { navController.popBackStack() }
                     )
                 }
             }

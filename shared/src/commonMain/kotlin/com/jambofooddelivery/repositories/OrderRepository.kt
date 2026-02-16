@@ -84,13 +84,21 @@ class OrderRepositoryImpl(
 
     override suspend fun getOrder(orderId: String): Result<Order> {
         return try {
+            Napier.d("OrderRepository: Fetching order $orderId")
             val response = apiService.getOrder(orderId)
+            
+            // Check if backend returned Success but with empty data, or returned the object directly
             if (response.success && response.data != null) {
                 Result.Success(response.data)
+            } else if (response.data != null) { 
+                // Some backends might return the object directly without 'success: true' wrapped
+                Result.Success(response.data)
             } else {
+                Napier.e("OrderRepository: Order fetch failed for $orderId. Error: ${response.error}")
                 Result.Error(response.error ?: "Order not found")
             }
         } catch (e: Exception) {
+            Napier.e("OrderRepository: Exception fetching order $orderId: ${e.message}")
             Result.Error("Failed to load order: ${e.message}")
         }
     }
